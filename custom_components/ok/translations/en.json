@@ -1,0 +1,460 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OK",
+        "description": "Connect your OK account and register a Home Assistant app device.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        },
+        "data_description": {
+          "email": "The email address used for the OK app.",
+          "password": "Your OK app password. It is only used to register and authenticate this Home Assistant device."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate OK",
+        "description": "Enter your OK credentials again.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        },
+        "data_description": {
+          "email": "The email address used for the existing OK account.",
+          "password": "Your current OK app password."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure OK",
+        "description": "Update the OK credentials used by this integration.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        },
+        "data_description": {
+          "email": "The email address used for the existing OK account.",
+          "password": "Your current OK app password."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to OK.",
+      "invalid_auth": "The OK credentials were rejected.",
+      "unknown": "Unexpected error.",
+      "wrong_account": "The credentials belong to a different OK account."
+    },
+    "abort": {
+      "already_configured": "This OK account is already configured.",
+      "reconfigure_successful": "Reconfiguration was successful.",
+      "reauth_successful": "Reauthentication was successful.",
+      "unknown": "Could not find the OK config entry."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OK options",
+        "data": {
+          "include_receipts": "Last session entities"
+        },
+        "data_description": {
+          "include_receipts": "Fetch charging receipts and create the last session entities."
+        }
+      }
+    }
+  },
+  "device": {
+    "account": {
+      "name": "OK Account"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "energy_price": {
+        "name": "Energy price",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Charger ID"
+          },
+          "unit": {
+            "name": "Unit"
+          },
+          "currency": {
+            "name": "Currency"
+          },
+          "region": {
+            "name": "Region"
+          },
+          "tomorrow_valid": {
+            "name": "Tomorrow valid"
+          },
+          "next_data_update": {
+            "name": "Next data update"
+          },
+          "today": {
+            "name": "Today"
+          },
+          "tomorrow": {
+            "name": "Tomorrow"
+          },
+          "raw_today": {
+            "name": "Raw today"
+          },
+          "raw_tomorrow": {
+            "name": "Raw tomorrow"
+          },
+          "today_min": {
+            "name": "Today minimum"
+          },
+          "today_max": {
+            "name": "Today maximum"
+          },
+          "today_mean": {
+            "name": "Today average"
+          },
+          "tomorrow_min": {
+            "name": "Tomorrow minimum"
+          },
+          "tomorrow_max": {
+            "name": "Tomorrow maximum"
+          },
+          "tomorrow_mean": {
+            "name": "Tomorrow average"
+          },
+          "use_cent": {
+            "name": "Use cents"
+          },
+          "prices": {
+            "name": "Prices"
+          },
+          "product": {
+            "name": "Product"
+          },
+          "attribution": {
+            "name": "Attribution"
+          }
+        }
+      },
+      "last_refresh": {
+        "name": "Last refresh",
+        "state_attributes": {
+          "account_settings": {
+            "name": "Account settings"
+          },
+          "charger_overview": {
+            "name": "Charger overview"
+          },
+          "energy_prices": {
+            "name": "Energy prices"
+          },
+          "active_sessions": {
+            "name": "Active sessions"
+          },
+          "charging_receipts": {
+            "name": "Charging receipts"
+          },
+          "trigger": {
+            "name": "Trigger"
+          },
+          "in_progress": {
+            "name": "In progress"
+          }
+        }
+      },
+      "charger_last_refresh": {
+        "name": "Last refresh",
+        "state_attributes": {
+          "charger_status": {
+            "name": "Charger status"
+          },
+          "session_status": {
+            "name": "Session status"
+          },
+          "session_receipt": {
+            "name": "Session receipt"
+          }
+        }
+      },
+      "connector_status": {
+        "name": "Status",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Charger ID"
+          },
+          "connector_id": {
+            "name": "Connector ID"
+          },
+          "raw_status": {
+            "name": "Raw status"
+          },
+          "status_updated": {
+            "name": "Status updated"
+          },
+          "maximum_power_kw": {
+            "name": "Maximum power"
+          }
+        },
+        "state": {
+          "available": "Available",
+          "preparing": "Preparing",
+          "charging": "Charging",
+          "suspended_evse": "Suspended by charger",
+          "suspended_ev": "Suspended by vehicle",
+          "finishing": "Finishing",
+          "reserved": "Reserved",
+          "unavailable": "Unavailable",
+          "faulted": "Faulted"
+        }
+      },
+      "connector_status_connector": {
+        "name": "Connector {connector_id} status",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Charger ID"
+          },
+          "connector_id": {
+            "name": "Connector ID"
+          },
+          "raw_status": {
+            "name": "Raw status"
+          },
+          "status_updated": {
+            "name": "Status updated"
+          },
+          "maximum_power_kw": {
+            "name": "Maximum power"
+          }
+        },
+        "state": {
+          "available": "Available",
+          "preparing": "Preparing",
+          "charging": "Charging",
+          "suspended_evse": "Suspended by charger",
+          "suspended_ev": "Suspended by vehicle",
+          "finishing": "Finishing",
+          "reserved": "Reserved",
+          "unavailable": "Unavailable",
+          "faulted": "Faulted"
+        }
+      },
+      "connector_session_power": {
+        "name": "Session power"
+      },
+      "connector_session_power_connector": {
+        "name": "Connector {connector_id} session power"
+      },
+      "connector_session_energy": {
+        "name": "Session energy"
+      },
+      "connector_session_energy_connector": {
+        "name": "Connector {connector_id} session energy"
+      },
+      "schedule_start": {
+        "name": "Schedule start"
+      },
+      "schedule_start_connector": {
+        "name": "Connector {connector_id} schedule start"
+      },
+      "schedule_end": {
+        "name": "Schedule end"
+      },
+      "schedule_end_connector": {
+        "name": "Connector {connector_id} schedule end"
+      },
+      "schedule_duration": {
+        "name": "Schedule duration"
+      },
+      "schedule_duration_connector": {
+        "name": "Connector {connector_id} schedule duration"
+      },
+      "last_session_ended": {
+        "name": "Last session ended"
+      },
+      "last_session_energy": {
+        "name": "Last session energy"
+      },
+      "last_session_cost": {
+        "name": "Last session cost",
+        "state_attributes": {
+          "no_price_reason": {
+            "name": "No price reason"
+          }
+        }
+      },
+      "last_session_started": {
+        "name": "Last session started"
+      },
+      "last_session_duration": {
+        "name": "Last session duration"
+      }
+    },
+    "switch": {
+      "auto_start": {
+        "name": "Auto start"
+      }
+    },
+    "button": {
+      "start_charging": {
+        "name": "Start charging"
+      },
+      "start_charging_connector": {
+        "name": "Connector {connector_id} start charging"
+      },
+      "stop_charging": {
+        "name": "Stop charging"
+      },
+      "stop_charging_connector": {
+        "name": "Connector {connector_id} stop charging"
+      },
+      "cancel_schedule": {
+        "name": "Cancel schedule"
+      },
+      "cancel_schedule_connector": {
+        "name": "Connector {connector_id} cancel schedule"
+      },
+      "restart": {
+        "name": "Restart"
+      },
+      "force_refresh": {
+        "name": "Force refresh"
+      }
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "The OK config entry {config_entry_id} is not loaded."
+    },
+    "entity_not_found": {
+      "message": "The selected entity {entity_id} is not available."
+    },
+    "entity_not_ok": {
+      "message": "The selected entity {entity_id} is not an OK entity."
+    },
+    "entity_missing_config_entry": {
+      "message": "The selected OK entity {entity_id} is not linked to a loaded config entry."
+    },
+    "entity_missing_connector": {
+      "message": "The selected entity {entity_id} does not identify an OK charger connector."
+    },
+    "connector_not_found": {
+      "message": "The selected entity {entity_id} does not match a loaded OK charger connector."
+    },
+    "active_charging_not_found": {
+      "message": "No active OK charging session or schedule is available for the selected charger connector."
+    },
+    "invalid_schedule_window": {
+      "message": "Scheduled end must be after scheduled start."
+    },
+    "command_failed": {
+      "message": "OK command failed: {reason}"
+    },
+    "api_configuration_error": {
+      "message": "OK API configuration is incomplete: {reason}"
+    },
+    "api_authentication_error": {
+      "message": "OK authentication failed and reauthentication has been started: {reason}"
+    },
+    "api_error": {
+      "message": "OK API request failed: {reason}"
+    }
+  },
+  "issues": {
+    "realtime_updates_unavailable": {
+      "title": "OK realtime updates are unavailable",
+      "description": "OK charging status will continue to update by polling, but Firestore realtime updates could not be started: {reason}"
+    }
+  },
+  "services": {
+    "start_charging": {
+      "name": "Start charging",
+      "description": "Start charging on an OK home charger connector.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select an OK connector status sensor for the charger connector."
+        }
+      }
+    },
+    "schedule_charging": {
+      "name": "Schedule charging",
+      "description": "Schedule an OK home charging session.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select an OK connector status sensor for the charger connector."
+        },
+        "scheduled_start": {
+          "name": "Scheduled start",
+          "description": "Local start date and time for the charging schedule."
+        },
+        "scheduled_end": {
+          "name": "Scheduled end",
+          "description": "Local end date and time for the charging schedule."
+        }
+      }
+    },
+    "update_charging_schedule": {
+      "name": "Update charging schedule",
+      "description": "Update an existing OK charging schedule.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select an OK connector status sensor for the active charging session or schedule."
+        },
+        "scheduled_start": {
+          "name": "Scheduled start",
+          "description": "Local start date and time for the updated charging schedule."
+        },
+        "scheduled_end": {
+          "name": "Scheduled end",
+          "description": "Local end date and time for the updated charging schedule."
+        }
+      }
+    },
+    "cancel_charging_schedule": {
+      "name": "Cancel charging schedule",
+      "description": "Cancel an existing OK charging schedule.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select an OK connector status sensor for the active charging session or schedule."
+        }
+      }
+    },
+    "stop_charging": {
+      "name": "Stop charging",
+      "description": "Stop an active OK charging session.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select an OK connector status sensor for the active charging session."
+        }
+      }
+    },
+    "restart": {
+      "name": "Restart",
+      "description": "Restart an OK home charger.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select any OK connector status sensor on the charger."
+        }
+      }
+    },
+    "set_auto_start": {
+      "name": "Set auto start",
+      "description": "Enable or disable auto start on an OK home charger.",
+      "fields": {
+        "entity_id": {
+          "name": "Connector status sensor",
+          "description": "Select any OK connector status sensor on the charger."
+        },
+        "autostart": {
+          "name": "Auto start",
+          "description": "Whether the charger should start charging automatically when connected."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,460 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OK",
+        "description": "Forbind din OK-konto, og registrer en Home Assistant-app-enhed.",
+        "data": {
+          "email": "E-mail",
+          "password": "Adgangskode"
+        },
+        "data_description": {
+          "email": "E-mailadressen, der bruges til OK-appen.",
+          "password": "Din adgangskode til OK-appen. Den bruges kun til at registrere og godkende denne Home Assistant-enhed."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Godkend OK igen",
+        "description": "Indtast dine OK-loginoplysninger igen.",
+        "data": {
+          "email": "E-mail",
+          "password": "Adgangskode"
+        },
+        "data_description": {
+          "email": "E-mailadressen, der bruges til den eksisterende OK-konto.",
+          "password": "Din nuværende adgangskode til OK-appen."
+        }
+      },
+      "reconfigure": {
+        "title": "Omkonfigurer OK",
+        "description": "Opdater de OK-loginoplysninger, som denne integration bruger.",
+        "data": {
+          "email": "E-mail",
+          "password": "Adgangskode"
+        },
+        "data_description": {
+          "email": "E-mailadressen, der bruges til den eksisterende OK-konto.",
+          "password": "Din nuværende adgangskode til OK-appen."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kunne ikke oprette forbindelse til OK.",
+      "invalid_auth": "OK-loginoplysningerne blev afvist.",
+      "unknown": "Uventet fejl.",
+      "wrong_account": "Loginoplysningerne tilhører en anden OK-konto."
+    },
+    "abort": {
+      "already_configured": "Denne OK-konto er allerede konfigureret.",
+      "reconfigure_successful": "Omkonfigureringen lykkedes.",
+      "reauth_successful": "Godkendelsen lykkedes.",
+      "unknown": "Kunne ikke finde OK-konfigurationsposten."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OK-indstillinger",
+        "data": {
+          "include_receipts": "Seneste session-entiteter"
+        },
+        "data_description": {
+          "include_receipts": "Hent ladekvitteringer, og opret entiteterne for seneste session."
+        }
+      }
+    }
+  },
+  "device": {
+    "account": {
+      "name": "OK-konto"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "energy_price": {
+        "name": "Energipris",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Lader-ID"
+          },
+          "unit": {
+            "name": "Enhed"
+          },
+          "currency": {
+            "name": "Valuta"
+          },
+          "region": {
+            "name": "Region"
+          },
+          "tomorrow_valid": {
+            "name": "I morgen gyldig"
+          },
+          "next_data_update": {
+            "name": "Næste dataopdatering"
+          },
+          "today": {
+            "name": "I dag"
+          },
+          "tomorrow": {
+            "name": "I morgen"
+          },
+          "raw_today": {
+            "name": "Rådata i dag"
+          },
+          "raw_tomorrow": {
+            "name": "Rådata i morgen"
+          },
+          "today_min": {
+            "name": "Minimum i dag"
+          },
+          "today_max": {
+            "name": "Maksimum i dag"
+          },
+          "today_mean": {
+            "name": "Gennemsnit i dag"
+          },
+          "tomorrow_min": {
+            "name": "Minimum i morgen"
+          },
+          "tomorrow_max": {
+            "name": "Maksimum i morgen"
+          },
+          "tomorrow_mean": {
+            "name": "Gennemsnit i morgen"
+          },
+          "use_cent": {
+            "name": "Brug øre"
+          },
+          "prices": {
+            "name": "Priser"
+          },
+          "product": {
+            "name": "Produkt"
+          },
+          "attribution": {
+            "name": "Kildeangivelse"
+          }
+        }
+      },
+      "last_refresh": {
+        "name": "Seneste opdatering",
+        "state_attributes": {
+          "account_settings": {
+            "name": "Kontoindstillinger"
+          },
+          "charger_overview": {
+            "name": "Laderoversigt"
+          },
+          "energy_prices": {
+            "name": "Energipriser"
+          },
+          "active_sessions": {
+            "name": "Aktive sessioner"
+          },
+          "charging_receipts": {
+            "name": "Ladekvitteringer"
+          },
+          "trigger": {
+            "name": "Udløser"
+          },
+          "in_progress": {
+            "name": "I gang"
+          }
+        }
+      },
+      "charger_last_refresh": {
+        "name": "Seneste opdatering",
+        "state_attributes": {
+          "charger_status": {
+            "name": "Laderstatus"
+          },
+          "session_status": {
+            "name": "Sessionsstatus"
+          },
+          "session_receipt": {
+            "name": "Sessionskvittering"
+          }
+        }
+      },
+      "connector_status": {
+        "name": "Status",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Lader-ID"
+          },
+          "connector_id": {
+            "name": "Ladestik-ID"
+          },
+          "raw_status": {
+            "name": "Rå status"
+          },
+          "status_updated": {
+            "name": "Status opdateret"
+          },
+          "maximum_power_kw": {
+            "name": "Maksimal effekt"
+          }
+        },
+        "state": {
+          "available": "Tilgængelig",
+          "preparing": "Forbereder",
+          "charging": "Oplader",
+          "suspended_evse": "Pause fra ladestanderen",
+          "suspended_ev": "Pause fra bilen",
+          "finishing": "Afslutter",
+          "reserved": "Reserveret",
+          "unavailable": "Ikke tilgængelig",
+          "faulted": "Fejl"
+        }
+      },
+      "connector_status_connector": {
+        "name": "Ladestik {connector_id} status",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Lader-ID"
+          },
+          "connector_id": {
+            "name": "Ladestik-ID"
+          },
+          "raw_status": {
+            "name": "Rå status"
+          },
+          "status_updated": {
+            "name": "Status opdateret"
+          },
+          "maximum_power_kw": {
+            "name": "Maksimal effekt"
+          }
+        },
+        "state": {
+          "available": "Tilgængelig",
+          "preparing": "Forbereder",
+          "charging": "Oplader",
+          "suspended_evse": "Pause fra ladestanderen",
+          "suspended_ev": "Pause fra bilen",
+          "finishing": "Afslutter",
+          "reserved": "Reserveret",
+          "unavailable": "Ikke tilgængelig",
+          "faulted": "Fejl"
+        }
+      },
+      "connector_session_power": {
+        "name": "Sessionseffekt"
+      },
+      "connector_session_power_connector": {
+        "name": "Ladestik {connector_id} sessionseffekt"
+      },
+      "connector_session_energy": {
+        "name": "Sessionsenergi"
+      },
+      "connector_session_energy_connector": {
+        "name": "Ladestik {connector_id} sessionsenergi"
+      },
+      "schedule_start": {
+        "name": "Ladeplan start"
+      },
+      "schedule_start_connector": {
+        "name": "Ladestik {connector_id} ladeplan start"
+      },
+      "schedule_end": {
+        "name": "Ladeplan slut"
+      },
+      "schedule_end_connector": {
+        "name": "Ladestik {connector_id} ladeplan slut"
+      },
+      "schedule_duration": {
+        "name": "Ladeplan varighed"
+      },
+      "schedule_duration_connector": {
+        "name": "Ladestik {connector_id} ladeplan varighed"
+      },
+      "last_session_ended": {
+        "name": "Seneste session sluttede"
+      },
+      "last_session_energy": {
+        "name": "Seneste sessionsenergi"
+      },
+      "last_session_cost": {
+        "name": "Seneste sessionspris",
+        "state_attributes": {
+          "no_price_reason": {
+            "name": "Årsag til manglende pris"
+          }
+        }
+      },
+      "last_session_started": {
+        "name": "Seneste session startede"
+      },
+      "last_session_duration": {
+        "name": "Seneste sessionsvarighed"
+      }
+    },
+    "switch": {
+      "auto_start": {
+        "name": "Autostart"
+      }
+    },
+    "button": {
+      "start_charging": {
+        "name": "Start opladning"
+      },
+      "start_charging_connector": {
+        "name": "Ladestik {connector_id} start opladning"
+      },
+      "stop_charging": {
+        "name": "Stop opladning"
+      },
+      "stop_charging_connector": {
+        "name": "Ladestik {connector_id} stop opladning"
+      },
+      "cancel_schedule": {
+        "name": "Annuller tidsplan"
+      },
+      "cancel_schedule_connector": {
+        "name": "Ladestik {connector_id} annuller tidsplan"
+      },
+      "restart": {
+        "name": "Genstart"
+      },
+      "force_refresh": {
+        "name": "Gennemtving opdatering"
+      }
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "OK-konfigurationsposten {config_entry_id} er ikke indlæst."
+    },
+    "entity_not_found": {
+      "message": "Den valgte entitet {entity_id} er ikke tilgængelig."
+    },
+    "entity_not_ok": {
+      "message": "Den valgte entitet {entity_id} er ikke en OK-entitet."
+    },
+    "entity_missing_config_entry": {
+      "message": "Den valgte OK-entitet {entity_id} er ikke knyttet til en indlæst konfigurationspost."
+    },
+    "entity_missing_connector": {
+      "message": "Den valgte entitet {entity_id} identificerer ikke et OK-ladestik."
+    },
+    "connector_not_found": {
+      "message": "Den valgte entitet {entity_id} matcher ikke et indlæst OK-ladestik."
+    },
+    "active_charging_not_found": {
+      "message": "Der er ingen aktiv OK-ladesession eller tidsplan for det valgte ladestik."
+    },
+    "invalid_schedule_window": {
+      "message": "Planlagt slut skal være efter planlagt start."
+    },
+    "command_failed": {
+      "message": "OK-kommando mislykkedes: {reason}"
+    },
+    "api_configuration_error": {
+      "message": "OK API-konfigurationen er ufuldstændig: {reason}"
+    },
+    "api_authentication_error": {
+      "message": "OK-godkendelse mislykkedes, og ny godkendelse er startet: {reason}"
+    },
+    "api_error": {
+      "message": "OK API-anmodning mislykkedes: {reason}"
+    }
+  },
+  "issues": {
+    "realtime_updates_unavailable": {
+      "title": "OK-realtidsopdateringer er ikke tilgængelige",
+      "description": "OK-ladestatus fortsætter med at blive opdateret via polling, men Firestore-realtidsopdateringer kunne ikke startes: {reason}"
+    }
+  },
+  "services": {
+    "start_charging": {
+      "name": "Start opladning",
+      "description": "Start opladning på et OK-hjemmeladerstik.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en OK-ladestikstatussensor for ladestikket."
+        }
+      }
+    },
+    "schedule_charging": {
+      "name": "Planlæg opladning",
+      "description": "Planlæg en OK-hjemmeladesession.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en OK-ladestikstatussensor for ladestikket."
+        },
+        "scheduled_start": {
+          "name": "Planlagt start",
+          "description": "Lokal startdato og -tid for ladeplanen."
+        },
+        "scheduled_end": {
+          "name": "Planlagt slut",
+          "description": "Lokal slutdato og -tid for ladeplanen."
+        }
+      }
+    },
+    "update_charging_schedule": {
+      "name": "Opdater ladeplan",
+      "description": "Opdater en eksisterende OK-ladeplan.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en OK-ladestikstatussensor for den aktive ladesession eller tidsplan."
+        },
+        "scheduled_start": {
+          "name": "Planlagt start",
+          "description": "Lokal startdato og -tid for den opdaterede ladeplan."
+        },
+        "scheduled_end": {
+          "name": "Planlagt slut",
+          "description": "Lokal slutdato og -tid for den opdaterede ladeplan."
+        }
+      }
+    },
+    "cancel_charging_schedule": {
+      "name": "Annuller ladeplan",
+      "description": "Annuller en eksisterende OK-ladeplan.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en OK-ladestikstatussensor for den aktive ladesession eller tidsplan."
+        }
+      }
+    },
+    "stop_charging": {
+      "name": "Stop opladning",
+      "description": "Stop en aktiv OK-ladesession.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en OK-ladestikstatussensor for den aktive ladesession."
+        }
+      }
+    },
+    "restart": {
+      "name": "Genstart",
+      "description": "Genstart en OK-hjemmeoplader.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en hvilken som helst OK-ladestikstatussensor på opladeren."
+        }
+      }
+    },
+    "set_auto_start": {
+      "name": "Indstil autostart",
+      "description": "Aktiver eller deaktiver autostart på en OK-hjemmeoplader.",
+      "fields": {
+        "entity_id": {
+          "name": "Statussensor for ladestik",
+          "description": "Vælg en hvilken som helst OK-ladestikstatussensor på opladeren."
+        },
+        "autostart": {
+          "name": "Autostart",
+          "description": "Om opladeren automatisk skal starte opladning, når den tilsluttes."
+        }
+      }
+    }
+  }
+}
