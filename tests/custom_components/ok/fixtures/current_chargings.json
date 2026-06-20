@@ -1,0 +1,9 @@
+[
+  {
+    "csIdentifier": "OK-CHARGER-001",
+    "connectorId": 1,
+    "locationId": "location-id-001",
+    "firestoreToken": "charging-token-001",
+    "chargingToken": "charging-token-001"
+  }
+]

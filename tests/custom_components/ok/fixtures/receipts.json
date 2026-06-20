@@ -1,0 +1,12 @@
+[
+  {
+    "chargingStationId": "OK-CHARGER-001",
+    "kWh": 10.2,
+    "chargingStart": "2025-01-27T20:47:42+00:00",
+    "chargingEnd": "2025-01-29T19:32:32+00:00",
+    "locationName": "Example Street 1, 1000 Example City",
+    "chargingStationName": "Home",
+    "totalPriceInOere": 1767,
+    "noPriceReason": null
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "HentDeviceOpsaetningResult": {
+    "DeviceId": "device-id-002",
+    "DeviceFriendlyId": "HAOK01",
+    "FeatureFlagListe": [
+      "e-mobilitet",
+      "home-charging-v2"
+    ],
+    "Bruger": {
+      "Brugernr": 1000001,
+      "Emailadresse": "user@example.test",
+      "Navn": "OK User",
+      "ErValideret": true,
+      "ErValideringPaakraevet": true,
+      "LogIndToken": "settings-token"
+    }
+  }
+}

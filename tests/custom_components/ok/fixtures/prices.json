@@ -1,0 +1,31 @@
+{
+  "prices": [
+    {
+      "tariffIncludingVat": 35,
+      "electricityTaxIncludingVat": 90,
+      "electricityPriceIncludingVat": 8,
+      "vat": 27,
+      "applicableTime": "2025-06-01T10:00:00+00:00"
+    },
+    {
+      "tariffIncludingVat": 35,
+      "electricityTaxIncludingVat": 90,
+      "electricityPriceIncludingVat": 7,
+      "vat": 26,
+      "applicableTime": "2025-06-01T11:00:00+00:00"
+    },
+    {
+      "tariffIncludingVat": 35,
+      "electricityTaxIncludingVat": 90,
+      "electricityPriceIncludingVat": 80,
+      "vat": 41,
+      "applicableTime": "2025-06-01T20:00:00+00:00"
+    }
+  ],
+  "solarCells": false,
+  "electricalHeating": false,
+  "productType": 3,
+  "productName": "OK El Flex",
+  "okProductNo": 233,
+  "electricityPriceOrigin": "DigitEl"
+}

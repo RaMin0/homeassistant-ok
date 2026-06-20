@@ -1,0 +1,35 @@
+[
+  {
+    "locationId": "location-id-001",
+    "latitude": 55.0,
+    "longitude": 12.0,
+    "name": "Example Street 1, 1000",
+    "electricityPriceZone": "DK2",
+    "address": {
+      "city": "Example City",
+      "postalCode": "1000",
+      "road": "Example Street",
+      "number": 1,
+      "letter": ""
+    },
+    "chargingStations": [
+      {
+        "csIdentifier": "OK-CHARGER-001",
+        "name": "Home",
+        "serialNumber": "TEST-SERIAL-001",
+        "model": "G4E-WBO-M5320E",
+        "firmwareVersion": "P0425B0425v0.240410_W6.0.0-050",
+        "vendor": "EV-BOX",
+        "vendorName": "EvBox",
+        "autoStart": false,
+        "connectors": [
+          {
+            "connectorId": 1,
+            "power": 11,
+            "type": "Type2"
+          }
+        ]
+      }
+    ]
+  }
+]
