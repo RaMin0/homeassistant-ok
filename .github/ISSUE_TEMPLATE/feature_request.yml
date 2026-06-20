@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an OK integration capability or Home Assistant entity/action improvement.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What workflow or automation would this improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the entity, action, option, diagnostic, or behavior you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention any current workaround or dashboard/script approach.

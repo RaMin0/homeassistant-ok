@@ -1,0 +1,49 @@
+name: Setup problem
+description: Report a problem adding, reauthenticating, or configuring the OK integration.
+title: "fix(config): "
+labels:
+  - setup
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste passwords, tokens, `.storage` files, `secrets.yaml`, or unsanitized OK API captures.
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: home_assistant_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2025.12.5"
+    validations:
+      required: true
+  - type: dropdown
+    id: flow_step
+    attributes:
+      label: Where does setup fail?
+      options:
+        - Initial login
+        - Reauthentication
+        - Options flow
+        - Integration reload
+        - Home Assistant startup
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the setup problem and the visible Home Assistant error.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only relevant, redacted Home Assistant logs.
+      render: text

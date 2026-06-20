@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible problem with the OK integration.
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste passwords, tokens, `.storage` files, `secrets.yaml`, or unsanitized OK API captures.
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      description: Find this in HACS, the manifest, or the GitHub release you installed.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: home_assistant_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2025.12.5"
+    validations:
+      required: true
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation method
+      options:
+        - HACS custom repository
+        - Manual copy
+        - Development checkout
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe what happened and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Call action ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only relevant, redacted Home Assistant logs.
+      render: text
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Attach or summarize the redacted diagnostics download if available.
