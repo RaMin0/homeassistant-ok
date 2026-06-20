@@ -14,5 +14,5 @@
     "google-cloud-firestore==2.27.0",
     "httpx==0.28.1"
   ],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

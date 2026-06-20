@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.1.1 (2026-06-20)
+
+### Bug Fixes
+
+- Correct GitHub owner casing
+  ([`1f5da74`](https://github.com/RaMin0/homeassistant-ok/commit/1f5da7477b573d3fb21da184c50b6da44119414d))
+
+- Refine charger registry and blueprint defaults
+  ([`6705dd4`](https://github.com/RaMin0/homeassistant-ok/commit/6705dd493949e4563b1c0cd098fc01c5337170c5))
+
+
 ## 0.1.0
 
 - Initial public OK Home Assistant custom integration.
