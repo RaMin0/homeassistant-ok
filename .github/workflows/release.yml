@@ -77,55 +77,14 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_committer_name: github-actions[bot]
           git_committer_email: 41898282+github-actions[bot]@users.noreply.github.com
-          changelog: "true"
+          commit: "false"
+          changelog: "false"
           push: "true"
           vcs_release: "true"
 
       - name: Stop when no release is needed
         if: ${{ steps.release.outputs.released != 'true' }}
         run: echo "No release needed for this commit."
-
-      - name: Check out released commit
-        if: ${{ steps.release.outputs.released == 'true' }}
-        run: |
-          git fetch origin main --depth=1
-          git checkout --force "${{ steps.release.outputs.commit_sha }}"
-
-      - name: Create HACS release asset
-        if: ${{ steps.release.outputs.released == 'true' }}
-        run: |
-          python3 - <<'PY'
-          from __future__ import annotations
-
-          import os
-          from pathlib import Path
-          import zipfile
-
-          component_path = Path(os.environ["COMPONENT_PATH"])
-          asset_path = Path(os.environ["RUNNER_TEMP"]) / os.environ["RELEASE_ASSET_NAME"]
-          asset_path.unlink(missing_ok=True)
-          with zipfile.ZipFile(asset_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-              for path in sorted(component_path.rglob("*")):
-                  if not path.is_file():
-                      continue
-                  if "__pycache__" in path.parts or path.suffix == ".pyc":
-                      continue
-                  archive.write(path, path.relative_to(component_path))
-          with zipfile.ZipFile(asset_path) as archive:
-              if bad_file := archive.testzip():
-                  raise RuntimeError(f"Created corrupt zip member: {bad_file}")
-          PY
-
-      - name: Upload HACS release asset
-        if: ${{ steps.release.outputs.released == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload \
-            "${{ steps.release.outputs.tag }}" \
-            "${RUNNER_TEMP}/${RELEASE_ASSET_NAME}" \
-            --repo "${{ github.repository }}" \
-            --clobber
 
       - name: Summarize release
         if: ${{ steps.release.outputs.released == 'true' }}
@@ -134,8 +93,8 @@ jobs:
             echo "Released ${{ steps.release.outputs.tag }}"
             echo
             echo "- Version: ${{ steps.release.outputs.version }}"
-            echo "- Changelog: CHANGELOG.md"
-            echo "- HACS asset: ${RELEASE_ASSET_NAME}"
+            echo "- Release notes: GitHub release"
+            echo "- HACS asset: uploaded by the release event workflow"
             echo "- Release URL: ${{ steps.release.outputs.link }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
