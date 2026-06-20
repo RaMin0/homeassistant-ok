@@ -1,0 +1,55 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main, resolved 2026-06-19
+        with:
+          category: integration
+
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: home-assistant/actions/hassfest@e91ad1948e57189485b9c1ad608af0c303946f89 # master, resolved 2026-06-19
+
+  python:
+    name: Python / HA ${{ matrix.ha-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ha-version: "2025.12.5"
+            ha-image: ghcr.io/home-assistant/home-assistant:2025.12.5
+          - ha-version: stable
+            ha-image: ghcr.io/home-assistant/home-assistant:stable
+    container: ${{ matrix.ha-image }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - run: python -m pip install --upgrade pip
+      - run: python -c "import json, pathlib; pathlib.Path('/tmp/ok-manifest-requirements.txt').write_text('\n'.join(json.load(open('custom_components/ok/manifest.json'))['requirements']) + '\n')"
+      - run: python -m pip install -e .[dev] -r /tmp/ok-manifest-requirements.txt
+      - run: python -m ruff format --check custom_components tests tools
+      - run: python -m ruff check custom_components tests tools
+      - run: MYPYPATH=/usr/src/homeassistant python -m mypy
+      - run: python -m pytest --cov=custom_components.ok --cov-report=term-missing
+      - run: python -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id='ok-ci-smoke', credentials=None); _close_owned_firestore_client(client)"
+      - run: python -m build --outdir /tmp/dist
+      - run: python -m twine check /tmp/dist/*
+      - run: python -m pip install --force-reinstall --no-deps /tmp/dist/*.whl
+      - run: cd /tmp && python -c "import custom_components.ok.api as ok_api; print(ok_api.__version__); assert 'site-packages' in ok_api.__file__"

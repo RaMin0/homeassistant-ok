@@ -1,0 +1,52 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+    types:
+      - edited
+      - opened
+      - ready_for_review
+      - reopened
+      - synchronize
+  workflow_dispatch:
+    inputs:
+      title:
+        description: Conventional Commit title to validate
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  pull-request-title:
+    name: Pull Request Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title || inputs.title }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+          import re
+          import sys
+
+          title = os.environ.get("PR_TITLE", "")
+          pattern = re.compile(
+              r"^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)"
+              r"(\([^)]+\))?!?: .+"
+          )
+
+          if pattern.fullmatch(title):
+              sys.exit(0)
+
+          print("Pull request title must use Conventional Commits.")
+          print("Examples:")
+          print("  feat: add charger diagnostics")
+          print("  fix(sensor): handle missing session cost")
+          print("  docs!: document breaking setup change")
+          print(f"Received: {title!r}")
+          sys.exit(1)
+          PY
