@@ -1,0 +1,40 @@
+blueprint:
+  name: OK schedule charging
+  description: Schedule charging for an OK charger connector.
+  domain: script
+  author: homeassistant-ok contributors
+  homeassistant:
+    min_version: "2025.12.5"
+  input:
+    connector_status_entity:
+      name: Connector status sensor
+      description: Select the OK connector status sensor for the charger connector.
+      selector:
+        entity:
+          filter:
+            integration: ok
+            domain: sensor
+            device_class: enum
+
+fields:
+  scheduled_start:
+    name: Scheduled start
+    description: Local start date and time for the charging schedule.
+    required: true
+    selector:
+      datetime:
+  scheduled_end:
+    name: Scheduled end
+    description: Local end date and time for the charging schedule.
+    required: true
+    selector:
+      datetime:
+
+sequence:
+  - action: ok.schedule_charging
+    data:
+      entity_id: !input connector_status_entity
+      scheduled_start: "{{ scheduled_start }}"
+      scheduled_end: "{{ scheduled_end }}"
+
+mode: single
