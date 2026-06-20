@@ -1,0 +1,127 @@
+start_charging:
+  name: Start charging
+  description: Start charging on an OK home charger connector.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select an OK connector status sensor for the charger connector.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+
+schedule_charging:
+  name: Schedule charging
+  description: Schedule an OK home charging session.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select an OK connector status sensor for the charger connector.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+    scheduled_start:
+      name: Scheduled start
+      description: Local start date and time for the charging schedule.
+      required: true
+      selector:
+        datetime:
+    scheduled_end:
+      name: Scheduled end
+      description: Local end date and time for the charging schedule.
+      required: true
+      selector:
+        datetime:
+
+update_charging_schedule:
+  name: Update charging schedule
+  description: Update an existing OK charging schedule.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select an OK connector status sensor for the active charging session or schedule.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+    scheduled_start:
+      name: Scheduled start
+      description: Local start date and time for the updated charging schedule.
+      required: true
+      selector:
+        datetime:
+    scheduled_end:
+      name: Scheduled end
+      description: Local end date and time for the updated charging schedule.
+      required: true
+      selector:
+        datetime:
+
+cancel_charging_schedule:
+  name: Cancel charging schedule
+  description: Cancel an existing OK charging schedule.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select an OK connector status sensor for the active charging session or schedule.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+
+stop_charging:
+  name: Stop charging
+  description: Stop an active OK charging session.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select an OK connector status sensor for the active charging session.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+
+restart:
+  name: Restart
+  description: Restart an OK home charger.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select any OK connector status sensor on the charger.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+
+set_auto_start:
+  name: Set auto start
+  description: Enable or disable auto start on an OK home charger.
+  fields:
+    entity_id:
+      name: Connector status sensor
+      description: Select any OK connector status sensor on the charger.
+      required: true
+      selector:
+        entity:
+          integration: ok
+          domain: sensor
+          device_class: enum
+    autostart:
+      name: Auto start
+      description: Whether the charger should start charging automatically when connected.
+      required: true
+      selector:
+        boolean:
