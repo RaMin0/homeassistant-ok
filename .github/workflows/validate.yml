@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main, resolved 2026-06-19
         with:
           category: integration
@@ -25,7 +25,7 @@ jobs:
     name: Hassfest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: home-assistant/actions/hassfest@e91ad1948e57189485b9c1ad608af0c303946f89 # master, resolved 2026-06-19
 
   python:
@@ -41,7 +41,7 @@ jobs:
             ha-image: ghcr.io/home-assistant/home-assistant:stable
     container: ${{ matrix.ha-image }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e .[dev] -r requirements-manifest.txt
       - run: python -m pip_audit -r requirements-manifest.txt --progress-spinner off
@@ -66,7 +66,7 @@ jobs:
           - "3.14"
     container: python:${{ matrix.python-version }}-slim
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[firebase,dev]"
       - run: python -m pip_audit --progress-spinner off
