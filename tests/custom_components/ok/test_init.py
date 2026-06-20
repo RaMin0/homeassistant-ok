@@ -530,8 +530,6 @@ async def _test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities
     hass.config_entries._entries[entry.entry_id] = entry
     if hasattr(dr, "async_setup"):
         dr.async_setup(hass)
-    else:
-        hass.data[dr.DATA_REGISTRY] = dr.DeviceRegistry(hass)
     await dr.async_load(hass)
     await er.async_load(hass)
     registry = er.async_get(hass)

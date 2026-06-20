@@ -10,7 +10,7 @@
   "issue_tracker": "https://github.com/RaMin0/homeassistant-ok/issues",
   "loggers": ["google.api_core", "google.auth", "google.cloud.firestore"],
   "requirements": [
-    "google-auth==2.54.0",
+    "google-auth==2.55.0",
     "google-cloud-firestore==2.27.0"
   ],
   "version": "0.1.2"
