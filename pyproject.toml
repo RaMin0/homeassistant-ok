@@ -44,9 +44,9 @@ release = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ramin0/homeassistant-ok"
-Repository = "https://github.com/ramin0/homeassistant-ok"
-Issues = "https://github.com/ramin0/homeassistant-ok/issues"
+Homepage = "https://github.com/RaMin0/homeassistant-ok"
+Repository = "https://github.com/RaMin0/homeassistant-ok"
+Issues = "https://github.com/RaMin0/homeassistant-ok/issues"
 
 [tool.hatch.build.targets.wheel]
 only-include = ["custom_components/ok"]

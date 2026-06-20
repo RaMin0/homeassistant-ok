@@ -8,17 +8,17 @@
   </p>
 
   <p>
-    <a href="https://github.com/ramin0/homeassistant-ok/releases">
-      <img alt="GitHub release" src="https://img.shields.io/github/v/release/ramin0/homeassistant-ok?style=for-the-badge">
+    <a href="https://github.com/RaMin0/homeassistant-ok/releases">
+      <img alt="GitHub release" src="https://img.shields.io/github/v/release/RaMin0/homeassistant-ok?style=for-the-badge">
     </a>
-    <a href="https://github.com/ramin0/homeassistant-ok/actions/workflows/validate.yml">
-      <img alt="Validation status" src="https://img.shields.io/github/actions/workflow/status/ramin0/homeassistant-ok/validate.yml?branch=main&style=for-the-badge&label=validate">
+    <a href="https://github.com/RaMin0/homeassistant-ok/actions/workflows/validate.yml">
+      <img alt="Validation status" src="https://img.shields.io/github/actions/workflow/status/RaMin0/homeassistant-ok/validate.yml?branch=main&style=for-the-badge&label=validate">
     </a>
     <a href="https://hacs.xyz">
       <img alt="HACS custom repository" src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge&logo=homeassistant&logoColor=white">
     </a>
-    <a href="https://github.com/ramin0/homeassistant-ok/blob/main/LICENSE">
-      <img alt="License" src="https://img.shields.io/github/license/ramin0/homeassistant-ok?style=for-the-badge">
+    <a href="https://github.com/RaMin0/homeassistant-ok/blob/main/LICENSE">
+      <img alt="License" src="https://img.shields.io/github/license/RaMin0/homeassistant-ok?style=for-the-badge">
     </a>
   </p>
 
@@ -29,10 +29,10 @@
   </p>
 
   <p>
-    <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=ramin0&repository=homeassistant-ok&category=integration">
+    <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=RaMin0&repository=homeassistant-ok&category=integration">
       <img alt="Open this repository in HACS" src="https://my.home-assistant.io/badges/hacs_repository.svg">
     </a>
-    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Framin0%2Fhomeassistant-ok%2Fmain%2Fblueprints%2Fscript%2Fok%2Fschedule_charging.yaml">
+    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FRaMin0%2Fhomeassistant-ok%2Fmain%2Fblueprints%2Fscript%2Fok%2Fschedule_charging.yaml">
       <img alt="Import the schedule charging blueprint" src="https://my.home-assistant.io/badges/blueprint_import.svg">
     </a>
   </p>
@@ -94,7 +94,7 @@ publishing steps are tracked in [PUBLISHING.md](PUBLISHING.md).
 
 ### HACS
 
-[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ramin0&repository=homeassistant-ok&category=integration)
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=RaMin0&repository=homeassistant-ok&category=integration)
 
 1. Open the HACS button above, or add this repository as a custom HACS integration repository.
 2. Install `OK`.
@@ -195,7 +195,7 @@ To use it, import or copy the blueprint into Home Assistant:
   `blueprints/script/ok/schedule_charging.yaml`.
 - **One-click import**:
 
-  [![Open your Home Assistant instance and show the blueprint import dialog with this blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Framin0%2Fhomeassistant-ok%2Fmain%2Fblueprints%2Fscript%2Fok%2Fschedule_charging.yaml)
+  [![Open your Home Assistant instance and show the blueprint import dialog with this blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FRaMin0%2Fhomeassistant-ok%2Fmain%2Fblueprints%2Fscript%2Fok%2Fschedule_charging.yaml)
 - **Manual copy**: Copy the file to
   `config/blueprints/script/ok/schedule_charging.yaml`, then reload scripts/blueprints or restart
   Home Assistant.
