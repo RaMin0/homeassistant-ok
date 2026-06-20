@@ -81,11 +81,11 @@ jobs:
           for path in sorted(Path("custom_components/ok/api").glob("*.py")):
               py_compile.compile(path, doraise=True)
           PY
-      - name: Import bundled API client
-        env:
-          PYTHONPATH: custom_components/ok
+      - name: Import bundled API client standalone
         run: |
-          python - <<'PY'
+          mkdir -p /tmp/ok-api-client
+          cp -R custom_components/ok/api /tmp/ok-api-client/api
+          PYTHONPATH=/tmp/ok-api-client python - <<'PY'
           from __future__ import annotations
 
           import api as ok_api
