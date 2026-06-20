@@ -23,6 +23,8 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 - Enable Issues.
 - Enable squash merges and use the PR title as the squash commit message.
 - Disable merge commits for `main`.
+- The HACS validation job intentionally skips while the repository is private because HACS only
+  supports public GitHub repositories. Re-run `Validate` after making the repository public.
 - Protect `main` and require:
   - `HACS`
   - `Hassfest`

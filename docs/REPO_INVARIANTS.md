@@ -34,6 +34,10 @@ Keep:
 
 Do not introduce assumptions that only work for Home Assistant Core integrations.
 
+The HACS validation workflow intentionally skips while the repository is private. HACS only
+supports public GitHub repositories, so HACS validation must be re-run after the repository is made
+public.
+
 ## Version Synchronization
 
 The version must stay synchronized across:
