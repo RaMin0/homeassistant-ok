@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.1.2 (2026-06-20)
+
+### Bug Fixes
+
+- Use uniform entity id suggestions
+  ([`24cf754`](https://github.com/RaMin0/homeassistant-ok/commit/24cf754b9a20d4837fbd9eacbfc07b13bd3032a4))
+
+
 ## v0.1.1 (2026-06-20)
 
 ### Bug Fixes
