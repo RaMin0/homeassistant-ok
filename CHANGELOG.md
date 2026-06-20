@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.2.0 (2026-06-20)
+
+### Bug Fixes
+
+- Keep dependency validation in sync
+  ([`73be29a`](https://github.com/RaMin0/homeassistant-ok/commit/73be29ad8f18a76a0a4fab8095fe761a3e85f621))
+
+### Continuous Integration
+
+- Bump checkout action to v7
+  ([`d095531`](https://github.com/RaMin0/homeassistant-ok/commit/d095531a83613a7c15f506becc9b08d372aa0dc5))
+
+### Features
+
+- Improve update options and release readiness
+  ([`0f8713d`](https://github.com/RaMin0/homeassistant-ok/commit/0f8713d598259e04b3d9c0508ace972421d44f83))
+
+
 ## v0.1.2 (2026-06-20)
 
 ### Bug Fixes
