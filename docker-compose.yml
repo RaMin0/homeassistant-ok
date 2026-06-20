@@ -1,0 +1,54 @@
+name: homeassistant-ok-dev
+
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2025.12.5
+    container_name: ha-ok-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8123:8123"
+    environment:
+      TZ: Europe/Copenhagen
+    volumes:
+      - ./docker/ha/config:/config
+      - ./custom_components/ok:/config/custom_components/ok:ro
+      - ./blueprints/script/ok:/config/blueprints/script/ok:ro
+
+  watcher:
+    image: docker:27-cli
+    container_name: ha-ok-dev-watcher
+    profiles:
+      - watch
+    depends_on:
+      - homeassistant
+    environment:
+      TARGET_CONTAINER: ha-ok-dev
+      WATCH_INTERVAL: "2"
+      WATCH_PATH: /watch
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./custom_components/ok:/watch:ro
+    command:
+      - sh
+      - -ec
+      - |
+        hash_tree() {
+          find "$$WATCH_PATH" -type f ! -path '*/__pycache__/*' -print \
+            | sort \
+            | while IFS= read -r file; do sha256sum "$$file"; done \
+            | sha256sum \
+            | awk '{print $1}'
+        }
+
+        last="$$(hash_tree)"
+        echo "Watching $$WATCH_PATH; restarting $$TARGET_CONTAINER after file changes."
+
+        while true; do
+          current="$$(hash_tree)"
+          if [ "$$current" != "$$last" ]; then
+            echo "Detected OK integration change; restarting $$TARGET_CONTAINER."
+            docker restart "$$TARGET_CONTAINER" >/dev/null
+          fi
+          last="$$current"
+          sleep "$$WATCH_INTERVAL"
+        done
