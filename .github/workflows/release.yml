@@ -12,6 +12,12 @@ on:
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to rebuild the HACS asset. Leave empty to run semantic release.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -27,7 +33,10 @@ jobs:
       ${{
         github.event.repository.private == false &&
         (
-          github.event_name == 'workflow_dispatch' ||
+          (
+            github.event_name == 'workflow_dispatch' &&
+            github.event.inputs.release_tag == ''
+          ) ||
           (
             github.event_name == 'workflow_run' &&
             github.event.workflow_run.conclusion == 'success' &&
@@ -94,25 +103,108 @@ jobs:
             echo
             echo "- Version: ${{ steps.release.outputs.version }}"
             echo "- Release notes: GitHub release"
-            echo "- HACS asset: uploaded by the release event workflow"
+            echo "- HACS asset: uploaded to the GitHub release"
             echo "- Release URL: ${{ steps.release.outputs.link }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Stamp release version into asset files
+        if: ${{ steps.release.outputs.released == 'true' }}
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          version = os.environ["RELEASE_TAG"]
+          if version.startswith("v"):
+              version = version[1:]
+
+          manifest_path = Path("custom_components/ok/manifest.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          manifest["version"] = version
+          manifest_path.write_text(
+              json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
+          version_path = Path("custom_components/ok/api/_version.py")
+          version_path.write_text(
+              re.sub(
+                  r'__version__ = "[^"]+"',
+                  f'__version__ = "{version}"',
+                  version_path.read_text(encoding="utf-8"),
+              ),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Create HACS release asset
+        if: ${{ steps.release.outputs.released == 'true' }}
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import os
+          from pathlib import Path
+          import zipfile
+
+          component_path = Path(os.environ["COMPONENT_PATH"])
+          asset_path = Path(os.environ["RUNNER_TEMP"]) / os.environ["RELEASE_ASSET_NAME"]
+          asset_path.unlink(missing_ok=True)
+          with zipfile.ZipFile(asset_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(component_path.rglob("*")):
+                  if not path.is_file():
+                      continue
+                  if "__pycache__" in path.parts or path.suffix == ".pyc":
+                      continue
+                  archive.write(path, path.relative_to(component_path))
+          with zipfile.ZipFile(asset_path) as archive:
+              if bad_file := archive.testzip():
+                  raise RuntimeError(f"Created corrupt zip member: {bad_file}")
+          PY
+
+      - name: Upload HACS release asset
+        if: ${{ steps.release.outputs.released == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release upload \
+            "$RELEASE_TAG" \
+            "${RUNNER_TEMP}/${RELEASE_ASSET_NAME}" \
+            --repo "${{ github.repository }}" \
+            --clobber
+
   release-asset:
     name: HACS Release Asset
-    if: ${{ github.event_name == 'release' && github.event.repository.private == false }}
+    if: >-
+      ${{
+        github.event.repository.private == false &&
+        (
+          github.event_name == 'release' ||
+          (
+            github.event_name == 'workflow_dispatch' &&
+            github.event.inputs.release_tag != ''
+          )
+        )
+      }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       COMPONENT_PATH: custom_components/ok
       RELEASE_ASSET_NAME: ok.zip
-      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag }}
     steps:
       - name: Check out released tag
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag }}
           persist-credentials: false
 
       - name: Stamp release version into asset files
