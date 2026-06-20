@@ -1,7 +1,5 @@
 {
   "name": "OK",
   "country": "DK",
-  "homeassistant": "2025.12.5",
-  "zip_release": true,
-  "filename": "ok.zip"
+  "homeassistant": "2025.12.5"
 }

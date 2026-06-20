@@ -32,6 +32,8 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 - The release workflow commits version/changelog updates back to `main`. If branch protection
   blocks `GITHUB_TOKEN` from pushing release commits, use a dedicated GitHub App or fine-grained
   release token with contents write access and allow that actor to bypass the required checks.
+- Automated release jobs intentionally skip while the repository is private. Make the repository
+  public before creating the first release.
 - Add repository topics:
   - `home-assistant`
   - `hacs`
@@ -51,7 +53,8 @@ future automated releases.
 
 The first release can be created manually after the GitHub workflows pass. Do not publish to PyPI.
 Publishing the manual GitHub Release triggers the `HACS Release Asset` job, which uploads `ok.zip`
-for HACS.
+for HACS. Add `zip_release` and `filename` to `hacs.json` only after the first `ok.zip` asset
+exists, otherwise pre-release HACS validation can fail before it finds an integration manifest.
 
 ### Automated Releases
 

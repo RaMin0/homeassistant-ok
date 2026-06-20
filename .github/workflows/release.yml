@@ -25,11 +25,15 @@ jobs:
     name: Semantic Release
     if: >-
       ${{
-        github.event_name == 'workflow_dispatch' ||
+        github.event.repository.private == false &&
         (
-          github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.event == 'push' &&
-          github.event.workflow_run.head_branch == 'main'
+          github.event_name == 'workflow_dispatch' ||
+          (
+            github.event_name == 'workflow_run' &&
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.head_branch == 'main'
+          )
         )
       }}
     runs-on: ubuntu-latest
@@ -137,7 +141,7 @@ jobs:
 
   release-asset:
     name: HACS Release Asset
-    if: ${{ github.event_name == 'release' }}
+    if: ${{ github.event_name == 'release' && github.event.repository.private == false }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -24,7 +24,6 @@ and default tests use fixtures/mocks.
 Keep:
 
 - `hacs.json`
-- HACS release asset settings in `hacs.json`: `zip_release` and `filename`
 - `custom_components/ok/manifest.json`
 - `custom_components/ok/brand/*`
 - `custom_components/ok/translations/en.json`
@@ -47,9 +46,9 @@ The version must stay synchronized across:
 Semantic release is configured to update the first three and the changelog after the first public
 release baseline is established.
 
-The release workflow also creates `ok.zip` from `custom_components/ok` and uploads it to the
-GitHub Release. Do not include repository root files, Docker config, tests, docs, or local runtime
-state in that archive.
+The release workflow creates `ok.zip` from `custom_components/ok` and uploads it to the GitHub
+Release. Do not include repository root files, Docker config, tests, docs, or local runtime state
+in that archive. Only add HACS `zip_release` metadata after a matching release asset exists.
 
 ## Tests And API Calls
 
