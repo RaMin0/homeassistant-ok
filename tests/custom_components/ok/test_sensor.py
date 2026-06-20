@@ -134,10 +134,6 @@ def test_connector_status_translations_cover_enum_options() -> None:
             "connector_session_power_connector": "Connector {connector_id} session power",
             "connector_session_energy": "Session energy",
             "connector_session_energy_connector": "Connector {connector_id} session energy",
-            "schedule_start": "Schedule start",
-            "schedule_start_connector": "Connector {connector_id} schedule start",
-            "schedule_end": "Schedule end",
-            "schedule_end_connector": "Connector {connector_id} schedule end",
             "schedule_duration": "Schedule duration",
             "schedule_duration_connector": "Connector {connector_id} schedule duration",
             "last_refresh": "Last refresh",
@@ -150,10 +146,6 @@ def test_connector_status_translations_cover_enum_options() -> None:
             "connector_session_power_connector": "Ladestik {connector_id} sessionseffekt",
             "connector_session_energy": "Sessionsenergi",
             "connector_session_energy_connector": "Ladestik {connector_id} sessionsenergi",
-            "schedule_start": "Ladeplan start",
-            "schedule_start_connector": "Ladestik {connector_id} ladeplan start",
-            "schedule_end": "Ladeplan slut",
-            "schedule_end_connector": "Ladestik {connector_id} ladeplan slut",
             "schedule_duration": "Ladeplan varighed",
             "schedule_duration_connector": "Ladestik {connector_id} ladeplan varighed",
             "last_refresh": "Seneste opdatering",
@@ -271,25 +263,15 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
             "connector_session_energy": OkSensor(
                 coordinator, connector, _description("connector_session_energy")
             ).native_value,
-            "schedule_start": OkSensor(
-                coordinator, connector, _description("schedule_start")
-            ).native_value,
-            "schedule_end": OkSensor(
-                coordinator, connector, _description("schedule_end")
-            ).native_value,
             "schedule_duration": OkSensor(
                 coordinator, connector, _description("schedule_duration")
             ).native_value,
         }
-        schedule_start = OkSensor(coordinator, connector, _description("schedule_start"))
 
         assert power.native_unit_of_measurement is UnitOfPower.KILO_WATT
         assert values["connector_session_power"] == 3.522
         assert values["connector_session_energy"] == 5.835
-        assert values["schedule_start"] == datetime(2026, 6, 14, 15, 30, tzinfo=UTC)
-        assert values["schedule_end"] == datetime(2026, 6, 14, 18, 0, tzinfo=UTC)
         assert values["schedule_duration"] == 9000
-        assert schedule_start.extra_state_attributes == {}
         assert _description("schedule_duration").native_unit_of_measurement is UnitOfTime.SECONDS
         assert power.extra_state_attributes == {}
 
@@ -487,8 +469,6 @@ async def _test_last_session_sensors_are_option_gated(tmp_path: Path) -> None:
             "OK-CHARGER-001_1_connector_status",
             "OK-CHARGER-001_1_connector_session_power",
             "OK-CHARGER-001_1_connector_session_energy",
-            "OK-CHARGER-001_1_schedule_start",
-            "OK-CHARGER-001_1_schedule_end",
             "OK-CHARGER-001_1_schedule_duration",
         }
     finally:
@@ -536,13 +516,13 @@ async def _test_sensor_setup_adds_new_connectors_once(tmp_path: Path) -> None:
         coordinator.listeners[0]()
         coordinator.listeners[0]()
 
-        assert len(added) == len(SENSOR_DESCRIPTIONS) + 6
+        assert len(added) == len(SENSOR_DESCRIPTIONS) + 4
         assert "OK-CHARGER-001_2_connector_status" in {entity.unique_id for entity in added}
 
         coordinator.connector_refs.append(make_connector("EVB-P99999999", 1))
         coordinator.listeners[0]()
 
-        assert len(added) == len(SENSOR_DESCRIPTIONS) * 2 + 5
+        assert len(added) == len(SENSOR_DESCRIPTIONS) * 2 + 3
         assert "EVB-P99999999_energy_price" in {entity.unique_id for entity in added}
     finally:
         await hass.async_stop()

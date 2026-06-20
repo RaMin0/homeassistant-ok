@@ -4,11 +4,13 @@ import json
 from pathlib import Path
 
 from custom_components.ok.button import BUTTON_DESCRIPTIONS
+from custom_components.ok.datetime import DATETIME_DESCRIPTIONS
 from custom_components.ok.sensor import SENSOR_DESCRIPTIONS
 from custom_components.ok.switch import SWITCH_DESCRIPTIONS
 
 
 def test_icons_cover_all_entities() -> None:
+    assert _description_icon_keys("datetime") == _datetime_icon_keys()
     assert _description_icon_keys("sensor") == _sensor_icon_keys()
     assert _description_icon_keys("button") == _button_icon_keys()
     assert _description_icon_keys("switch") == {
@@ -27,6 +29,14 @@ def _sensor_icon_keys() -> set[str]:
         keys.add(description.translation_key)
         if description.connector_scoped:
             keys.add(f"{description.translation_key}_connector")
+    return keys
+
+
+def _datetime_icon_keys() -> set[str]:
+    keys: set[str] = set()
+    for description in DATETIME_DESCRIPTIONS:
+        keys.add(description.translation_key)
+        keys.add(f"{description.translation_key}_connector")
     return keys
 
 

@@ -78,6 +78,7 @@ class EntityTestClient:
         self.cancel_calls: list[str] = []
         self.restart_calls: list[str] = []
         self.auto_start_calls: list[dict[str, Any]] = []
+        self.update_calls: list[dict[str, Any]] = []
         self.error: Exception | None = None
 
     async def start_charging(self, **kwargs: Any) -> dict[str, str]:
@@ -93,6 +94,15 @@ class EntityTestClient:
     async def cancel_charging_schedule(self, charging_token: str) -> dict[str, Any]:
         self._raise_if_error()
         self.cancel_calls.append(charging_token)
+        return {}
+
+    async def update_charging_schedule(
+        self,
+        charging_token: str,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        self._raise_if_error()
+        self.update_calls.append({"charging_token": charging_token, **kwargs})
         return {}
 
     async def restart_station(self, charging_station_id: str) -> dict[str, Any]:

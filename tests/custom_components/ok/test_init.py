@@ -29,7 +29,7 @@ from pytest import MonkeyPatch
 from custom_components.ok import (
     OkRuntimeData,
     _async_update_listener,
-    _cleanup_disabled_option_entities,
+    _cleanup_removed_or_disabled_entities,
     _client_from_entry,
     _loaded_entries,
     async_migrate_entry,
@@ -497,13 +497,13 @@ async def _test_update_listener_and_device_removal() -> None:
     )
 
 
-def test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities(
+def test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(
     tmp_path: Path,
 ) -> None:
-    asyncio.run(_test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities(tmp_path))
+    asyncio.run(_test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(tmp_path))
 
 
-async def _test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities(
+async def _test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(
     tmp_path: Path,
 ) -> None:
     from homeassistant.helpers import device_registry as dr
@@ -578,6 +578,34 @@ async def _test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities
                 suggested_object_id="ok_connector_status",
                 config_entry=entry,
             ).entity_id,
+            "schedule_start": registry.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                "OK-CHARGER-001_1_schedule_start",
+                suggested_object_id="ok_schedule_start",
+                config_entry=entry,
+            ).entity_id,
+            "schedule_end": registry.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                "OK-CHARGER-001_1_schedule_end",
+                suggested_object_id="ok_schedule_end",
+                config_entry=entry,
+            ).entity_id,
+            "datetime_schedule_start": registry.async_get_or_create(
+                "datetime",
+                DOMAIN,
+                "OK-CHARGER-001_1_schedule_start",
+                suggested_object_id="ok_schedule_start",
+                config_entry=entry,
+            ).entity_id,
+            "datetime_schedule_end": registry.async_get_or_create(
+                "datetime",
+                DOMAIN,
+                "OK-CHARGER-001_1_schedule_end",
+                suggested_object_id="ok_schedule_end",
+                config_entry=entry,
+            ).entity_id,
             "auto_start": registry.async_get_or_create(
                 "switch",
                 DOMAIN,
@@ -594,9 +622,18 @@ async def _test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities
             ).entity_id,
         }
 
-        _cleanup_disabled_option_entities(hass, entry)
+        _cleanup_removed_or_disabled_entities(hass, entry)
 
-        for key in ("energy_price", "last_session", "start", "restart"):
+        for key in (
+            "energy_price",
+            "last_session",
+            "start",
+            "restart",
+            "schedule_start",
+            "schedule_end",
+            "datetime_schedule_start",
+            "datetime_schedule_end",
+        ):
             assert registry.async_get(entity_ids[key]) is None
         for key in ("force_refresh", "connector_status", "auto_start", "foreign"):
             assert registry.async_get(entity_ids[key]) is not None
