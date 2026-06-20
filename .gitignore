@@ -1,0 +1,44 @@
+# Python/runtime caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# macOS/editor noise
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+.envrc
+secrets.yaml
+*.token
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Home Assistant/runtime files outside the Docker config tree
+.storage/
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# JavaScript tooling used for local icon research only
+node_modules/
+
+# Local AI/dev tooling
+.codex/
+
+# Home Assistant local Docker runtime state
+docker/ha/config/
+.ha_run.lock

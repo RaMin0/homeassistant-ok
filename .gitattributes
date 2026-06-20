@@ -1,0 +1,12 @@
+/.codex export-ignore
+/.coverage export-ignore
+/.envrc export-ignore
+/.github export-ignore
+/.mypy_cache export-ignore
+/.pytest_cache export-ignore
+/.ruff_cache export-ignore
+/__pycache__/ export-ignore
+**/__pycache__/ export-ignore
+*.py[cod] export-ignore
+/docker export-ignore
+/tests export-ignore
