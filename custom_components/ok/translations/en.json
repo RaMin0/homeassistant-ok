@@ -85,6 +85,20 @@
     }
   },
   "entity": {
+    "datetime": {
+      "schedule_from": {
+        "name": "Schedule from"
+      },
+      "schedule_from_connector": {
+        "name": "Connector {connector_id} schedule from"
+      },
+      "schedule_to": {
+        "name": "Schedule to"
+      },
+      "schedule_to_connector": {
+        "name": "Connector {connector_id} schedule to"
+      }
+    },
     "sensor": {
       "energy_price": {
         "name": "Energy price",
@@ -265,18 +279,6 @@
       "connector_session_energy_connector": {
         "name": "Connector {connector_id} session energy"
       },
-      "schedule_start": {
-        "name": "Schedule start"
-      },
-      "schedule_start_connector": {
-        "name": "Connector {connector_id} schedule start"
-      },
-      "schedule_end": {
-        "name": "Schedule end"
-      },
-      "schedule_end_connector": {
-        "name": "Connector {connector_id} schedule end"
-      },
       "schedule_duration": {
         "name": "Schedule duration"
       },
@@ -357,6 +359,9 @@
     },
     "active_charging_not_found": {
       "message": "No active OK charging session or schedule is available for the selected charger connector."
+    },
+    "schedule_window_missing": {
+      "message": "The current OK charging schedule is incomplete. Create a schedule before editing it."
     },
     "invalid_schedule_window": {
       "message": "Scheduled end must be after scheduled start."

@@ -163,8 +163,10 @@ empty charger responses are treated conservatively and do not remove existing de
   `region`, and summary attributes.
 - Connector status sensor with status timestamp and maximum-power attributes.
 - Auto start switch.
-- Session power, session energy, schedule start, schedule end, and schedule duration sensors
-  scoped per connector.
+- Session power, session energy, and schedule duration sensors scoped per connector.
+- Schedule from and schedule to datetime entities scoped per connector. These show the current
+  schedule values and let you edit an existing schedule with Home Assistant's native datetime
+  picker.
 - Optional last-session entities with receipt summary data, when last-session entities are
   enabled.
 
@@ -218,6 +220,10 @@ Create a new script from the blueprint, select the OK connector status sensor on
 script from a dashboard button. The script exposes `scheduled_start` and `scheduled_end` fields, so
 Home Assistant can prompt for the schedule window when the script is run.
 
+To edit an existing schedule after it has been created, use the schedule from and schedule to
+datetime entities. They show the current OK schedule values and open Home Assistant's native
+datetime picker.
+
 The integration does not create scripts automatically and does not modify `scripts.yaml`.
 
 Equivalent script action:
@@ -255,10 +261,16 @@ client is async and uses Home Assistant's shared `httpx` client.
 
 Use the integration's energy price sensor entity in ApexCharts. The exact entity ID depends on your
 charger name. This example uses a 34-hour rolling window with a one-hour left offset, matching the
-local dashboard copy.
+local dashboard copy. The tooltip value unit is inherited from the entity's `unit_of_measurement`.
 
 ```yaml
 type: custom:apexcharts-card
+apex_config:
+  chart:
+    height: 150px
+  xaxis:
+    tooltip:
+      enabled: false
 graph_span: 34h
 span:
   start: hour

@@ -7,6 +7,7 @@ from homeassistant.const import CONF_EMAIL, Platform
 DOMAIN: Final = "ok"
 
 PLATFORMS: Final = [
+    Platform.DATETIME,
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.BUTTON,

@@ -9,6 +9,20 @@
     }
   },
   "entity": {
+    "datetime": {
+      "schedule_from": {
+        "default": "mdi:calendar-start"
+      },
+      "schedule_from_connector": {
+        "default": "mdi:calendar-start"
+      },
+      "schedule_to": {
+        "default": "mdi:calendar-end"
+      },
+      "schedule_to_connector": {
+        "default": "mdi:calendar-end"
+      }
+    },
     "button": {
       "cancel_schedule": {
         "default": "mdi:calendar-remove"
@@ -71,18 +85,6 @@
       },
       "last_session_started": {
         "default": "mdi:clock-start"
-      },
-      "schedule_start": {
-        "default": "mdi:calendar-start"
-      },
-      "schedule_start_connector": {
-        "default": "mdi:calendar-start"
-      },
-      "schedule_end": {
-        "default": "mdi:calendar-end"
-      },
-      "schedule_end_connector": {
-        "default": "mdi:calendar-end"
       },
       "schedule_duration": {
         "default": "mdi:timer-outline"

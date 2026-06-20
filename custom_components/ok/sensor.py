@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import OkConfigEntry
+from . import schedule as ok_schedule
 from .const import (
     ATTR_CHARGER_ID,
     ATTR_CONNECTOR_ID,
@@ -30,6 +31,11 @@ from .coordinator import OkConnectorRef, OkDataUpdateCoordinator
 from .entity import OkEntity
 
 type SensorValue = str | int | float | datetime | None
+
+_charging_field = ok_schedule.charging_field
+_duration_seconds = ok_schedule.duration_seconds
+_parse_datetime = ok_schedule.parse_datetime
+_schedule_duration = ok_schedule.schedule_duration
 
 PARALLEL_UPDATES = 0
 _COORDINATOR_CONNECTOR = OkConnectorRef(location={}, station={}, connector={})
@@ -104,22 +110,6 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         value_fn=lambda coordinator, connector: _watt_hours_to_kwh(
             _charging_field(coordinator, connector, "chargeInWh")
-        ),
-    ),
-    OkSensorEntityDescription(
-        key="schedule_start",
-        translation_key="schedule_start",
-        device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda coordinator, connector: _parse_datetime(
-            _charging_field(coordinator, connector, "scheduledStart")
-        ),
-    ),
-    OkSensorEntityDescription(
-        key="schedule_end",
-        translation_key="schedule_end",
-        device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda coordinator, connector: _parse_datetime(
-            _charging_field(coordinator, connector, "scheduledEnd")
         ),
     ),
     OkSensorEntityDescription(
@@ -509,27 +499,6 @@ def _station_status_attrs(
     }
 
 
-def _charging_field(
-    coordinator: OkDataUpdateCoordinator,
-    connector: OkConnectorRef,
-    key: str,
-) -> Any:
-    charging = coordinator.active_charging_for(connector.station_id, connector.connector_id)
-    document = coordinator.charging_status_for(charging)
-    if document is None:
-        return None
-    return document.fields.get(key)
-
-
-def _schedule_duration(
-    coordinator: OkDataUpdateCoordinator,
-    connector: OkConnectorRef,
-) -> int | None:
-    start = _parse_datetime(_charging_field(coordinator, connector, "scheduledStart"))
-    end = _parse_datetime(_charging_field(coordinator, connector, "scheduledEnd"))
-    return _duration_seconds(start, end)
-
-
 def _receipt_field(
     coordinator: OkDataUpdateCoordinator,
     connector: OkConnectorRef,
@@ -583,15 +552,6 @@ def _ore_to_dkk(value: Any) -> float | None:
     return round(number / 100, 3)
 
 
-def _duration_seconds(start: datetime | None, end: datetime | None) -> int | None:
-    if start is None or end is None:
-        return None
-    duration = end - start
-    if duration.total_seconds() < 0:
-        return None
-    return round(duration.total_seconds())
-
-
 def _number(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
@@ -603,15 +563,3 @@ def _number(value: Any) -> float | None:
         except ValueError:
             return None
     return None
-
-
-def _parse_datetime(value: Any) -> datetime | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)

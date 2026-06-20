@@ -62,7 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OkConfigEntry) -> bool:
     runtime_data: OkRuntimeData | None = None
     try:
         await coordinator.async_config_entry_first_refresh()
-        _cleanup_disabled_option_entities(hass, entry)
+        _cleanup_removed_or_disabled_entities(hass, entry)
         runtime_data = OkRuntimeData(client=client, coordinator=coordinator)
         entry.runtime_data = runtime_data
         remove_update_listener = entry.add_update_listener(_async_update_listener)
@@ -161,8 +161,8 @@ def _entry_title_from_data(data: Mapping[str, Any]) -> str:
     return "OK"
 
 
-def _cleanup_disabled_option_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove registry entries for optional feature groups that are now disabled."""
+def _cleanup_removed_or_disabled_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove registry entries for entities that were removed or disabled."""
     from homeassistant.const import Platform
     from homeassistant.helpers import entity_registry as er
 
@@ -175,11 +175,14 @@ def _cleanup_disabled_option_entities(hass: HomeAssistant, entry: ConfigEntry) -
     )
     from .sensor import SENSOR_DESCRIPTIONS
 
-    disabled_keys: dict[str, set[str]] = {}
+    disabled_keys: dict[str, set[str]] = {
+        Platform.DATETIME.value: {"schedule_start", "schedule_end"},
+        Platform.SENSOR.value: {"schedule_start", "schedule_end"},
+    }
     if entry.options.get(CONF_INCLUDE_RECEIPTS, True) is False:
-        disabled_keys[Platform.SENSOR.value] = {
+        disabled_keys[Platform.SENSOR.value].update(
             description.key for description in SENSOR_DESCRIPTIONS if description.receipt_required
-        }
+        )
     if entry.options.get(CONF_ENABLE_ENERGY_PRICES, True) is False:
         disabled_keys.setdefault(Platform.SENSOR.value, set()).update(
             description.key
@@ -193,6 +196,8 @@ def _cleanup_disabled_option_entities(hass: HomeAssistant, entry: ConfigEntry) -
     if not disabled_keys:
         return
 
+    if not hasattr(hass, "data"):
+        return
     registry = er.async_get(hass)
     for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         if registry_entry.platform != DOMAIN:

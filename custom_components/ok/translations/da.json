@@ -85,6 +85,20 @@
     }
   },
   "entity": {
+    "datetime": {
+      "schedule_from": {
+        "name": "Ladeplan fra"
+      },
+      "schedule_from_connector": {
+        "name": "Ladestik {connector_id} ladeplan fra"
+      },
+      "schedule_to": {
+        "name": "Ladeplan til"
+      },
+      "schedule_to_connector": {
+        "name": "Ladestik {connector_id} ladeplan til"
+      }
+    },
     "sensor": {
       "energy_price": {
         "name": "Energipris",
@@ -265,18 +279,6 @@
       "connector_session_energy_connector": {
         "name": "Ladestik {connector_id} sessionsenergi"
       },
-      "schedule_start": {
-        "name": "Ladeplan start"
-      },
-      "schedule_start_connector": {
-        "name": "Ladestik {connector_id} ladeplan start"
-      },
-      "schedule_end": {
-        "name": "Ladeplan slut"
-      },
-      "schedule_end_connector": {
-        "name": "Ladestik {connector_id} ladeplan slut"
-      },
       "schedule_duration": {
         "name": "Ladeplan varighed"
       },
@@ -357,6 +359,9 @@
     },
     "active_charging_not_found": {
       "message": "Der er ingen aktiv OK-ladesession eller tidsplan for det valgte ladestik."
+    },
+    "schedule_window_missing": {
+      "message": "Den aktuelle OK-ladeplan er ufuldstændig. Opret en ladeplan, før du redigerer den."
     },
     "invalid_schedule_window": {
       "message": "Planlagt slut skal være efter planlagt start."
