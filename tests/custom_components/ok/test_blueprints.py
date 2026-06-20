@@ -43,6 +43,7 @@ async def _test_schedule_charging_script_blueprint(tmp_path: Path) -> None:
 
         SCRIPT_ENTITY_SCHEMA(substituted)
 
+        assert substituted["icon"] == "mdi:battery-clock"
         assert substituted["sequence"][0]["action"] == "ok.schedule_charging"
         assert substituted["sequence"][0]["data"]["entity_id"] == "sensor.charger_connector_status"
     finally:

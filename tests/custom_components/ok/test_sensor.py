@@ -48,7 +48,7 @@ async def _test_connector_status_sensor_attrs_and_device_info(tmp_path: Path) ->
         }
         assert entity.device_info["identifiers"] == {("ok", "OK-CHARGER-001")}
         assert entity.device_info["name"] == "Home Charger"
-        assert entity.device_info["suggested_area"] == "Garage"
+        assert "suggested_area" not in entity.device_info
     finally:
         await hass.async_stop()
 

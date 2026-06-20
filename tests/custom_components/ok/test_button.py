@@ -24,6 +24,7 @@ def test_button_registry_defaults() -> None:
     assert _description("force_refresh").entity_registry_enabled_default is not False
     assert _description("force_refresh").entity_category is EntityCategory.CONFIG
     assert _description("restart").entity_registry_enabled_default is False
+    assert _description("restart").suggested_entity_id == "button.charger_restart"
 
 
 def test_buttons_call_ok_api_actions(tmp_path: Path) -> None:
@@ -47,6 +48,7 @@ async def _test_buttons_call_ok_api_actions(tmp_path: Path) -> None:
 
         assert start.unique_id == "OK-CHARGER-001_1_start_charging"
         assert restart.unique_id == "OK-CHARGER-001_restart"
+        assert restart.entity_id == "button.charger_restart"
         assert force_refresh.unique_id == "1000001_force_refresh"
         assert force_refresh.device_info["identifiers"] == {("ok", "account_1000001")}
         assert force_refresh.device_info["entry_type"] is DeviceEntryType.SERVICE

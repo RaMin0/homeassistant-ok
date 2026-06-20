@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
@@ -28,6 +29,7 @@ class OkButtonEntityDescription(ButtonEntityDescription):  # type: ignore[misc]
     available_fn: Callable[[OkButton], bool] | None = None
     connector_scoped: bool = True
     coordinator_scoped: bool = False
+    suggested_entity_id: str | None = None
 
 
 BUTTON_DESCRIPTIONS = (
@@ -54,6 +56,7 @@ BUTTON_DESCRIPTIONS = (
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         connector_scoped=False,
+        suggested_entity_id=f"{BUTTON_DOMAIN}.charger_restart",
         press_fn=lambda entity: entity._async_restart(),
     ),
     OkButtonEntityDescription(
@@ -138,6 +141,8 @@ class OkButton(OkEntity, ButtonEntity):  # type: ignore[misc]
             description.connector_scoped,
             description.coordinator_scoped,
         )
+        if description.suggested_entity_id is not None:
+            self.entity_id = description.suggested_entity_id
         self._set_multi_connector_translation(description.translation_key)
 
     @property

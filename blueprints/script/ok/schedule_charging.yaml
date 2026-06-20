@@ -30,6 +30,8 @@ fields:
     selector:
       datetime:
 
+icon: mdi:battery-clock
+
 sequence:
   - action: ok.schedule_charging
     data:

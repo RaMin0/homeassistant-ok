@@ -53,7 +53,6 @@ class OkEntity(CoordinatorEntity[OkDataUpdateCoordinator]):  # type: ignore[misc
                 translation_key="account",
             )
         station = self.connector.station
-        location = self.connector.location
         vendor = _string(station.get("vendorName")) or _string(station.get("vendor")) or "OK"
         return DeviceInfo(
             identifiers={(DOMAIN, self.station_id)},
@@ -62,7 +61,6 @@ class OkEntity(CoordinatorEntity[OkDataUpdateCoordinator]):  # type: ignore[misc
             name=_string(station.get("name")) or self.station_id,
             serial_number=_string(station.get("serialNumber")),
             sw_version=_string(station.get("firmwareVersion")),
-            suggested_area=_string(location.get("name")),
         )
 
     @property
