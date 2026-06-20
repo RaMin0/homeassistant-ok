@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import custom_components.ok.config_flow  # noqa: F401
 import pytest_asyncio
+import voluptuous_serialize
 from custom_components.ok.api import AsyncOkApiClient, OkConnectionError, OkStatusError
 from custom_components.ok.config_flow import CannotConnectError, _account_id, _title
 from custom_components.ok.const import (
@@ -16,6 +17,9 @@ from custom_components.ok.const import (
     CONF_APP_ID,
     CONF_DEVICE_FRIENDLY_ID,
     CONF_DEVICE_ID,
+    CONF_ENABLE_CONTROL_BUTTONS,
+    CONF_ENABLE_ENERGY_PRICES,
+    CONF_ENABLE_REALTIME_UPDATES,
     CONF_INCLUDE_RECEIPTS,
     DOMAIN,
 )
@@ -24,6 +28,7 @@ from homeassistant.config_entries import ConfigEntries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, __version__
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import config_validation as cv
 from homeassistant.loader import (
     DATA_COMPONENTS,
     DATA_CUSTOM_COMPONENTS,
@@ -108,6 +113,30 @@ async def test_user_flow_handles_cannot_connect(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_user_flow_requires_device_registration_fields(hass: HomeAssistant) -> None:
+    for missing_field in (CONF_APP_ID, CONF_DEVICE_ID, CONF_DEVICE_FRIENDLY_ID):
+
+        async def settings_missing_field(
+            self: AsyncOkApiClient,
+            *,
+            field: str = missing_field,
+        ) -> dict[str, Any]:
+            self.config.app_id = None if field == CONF_APP_ID else "APP"
+            self.config.device_id = None if field == CONF_DEVICE_ID else "device-id-002"
+            self.config.device_friendly_id = None if field == CONF_DEVICE_FRIENDLY_ID else "HAOK01"
+            return load_fixture("device_settings.json")
+
+        with _patch_validation(settings=settings_missing_field):
+            result = await hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": config_entries.SOURCE_USER},
+                data={CONF_EMAIL: "user@example.test", CONF_PASSWORD: "secret"},
+            )
+
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"base": "cannot_connect"}
 
 
 async def test_user_flow_handles_unexpected_validation_error(hass: HomeAssistant) -> None:
@@ -378,7 +407,7 @@ async def test_reconfigure_handles_validation_errors(hass: HomeAssistant) -> Non
         assert result["errors"] == {"base": expected}
 
 
-async def test_options_flow_updates_receipts(hass: HomeAssistant) -> None:
+async def test_options_flow_updates_feature_toggles(hass: HomeAssistant) -> None:
     entry = _mock_entry()
     _add_entry(hass, entry)
 
@@ -386,15 +415,53 @@ async def test_options_flow_updates_receipts(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "init"
-    assert result["data_schema"]({})[CONF_INCLUDE_RECEIPTS] is True
+    defaults = result["data_schema"]({})
+    assert defaults[CONF_ENABLE_ENERGY_PRICES] is True
+    assert defaults[CONF_INCLUDE_RECEIPTS] is True
+    assert defaults[CONF_ENABLE_CONTROL_BUTTONS] is True
+    assert defaults["advanced"][CONF_ENABLE_REALTIME_UPDATES] is True
+    serialized_schema = voluptuous_serialize.convert(
+        result["data_schema"],
+        custom_serializer=cv.custom_serializer,
+    )
+    advanced_section = next(item for item in serialized_schema if item["name"] == "advanced")
+    assert advanced_section["default"] == {CONF_ENABLE_REALTIME_UPDATES: True}
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_INCLUDE_RECEIPTS: False},
+        {
+            CONF_ENABLE_ENERGY_PRICES: False,
+            CONF_INCLUDE_RECEIPTS: False,
+            CONF_ENABLE_CONTROL_BUTTONS: False,
+            "advanced": {CONF_ENABLE_REALTIME_UPDATES: False},
+        },
     )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {CONF_INCLUDE_RECEIPTS: False}
+    assert result["data"] == {
+        CONF_INCLUDE_RECEIPTS: False,
+        CONF_ENABLE_REALTIME_UPDATES: False,
+        CONF_ENABLE_CONTROL_BUTTONS: False,
+        CONF_ENABLE_ENERGY_PRICES: False,
+    }
+
+
+async def test_options_flow_preserves_omitted_advanced_options(hass: HomeAssistant) -> None:
+    entry = _mock_entry(options={CONF_ENABLE_REALTIME_UPDATES: False})
+    _add_entry(hass, entry)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_ENABLE_ENERGY_PRICES: True,
+            CONF_INCLUDE_RECEIPTS: True,
+            CONF_ENABLE_CONTROL_BUTTONS: True,
+        },
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_ENABLE_REALTIME_UPDATES] is False
 
 
 def test_account_id_and_title_fallbacks() -> None:
@@ -465,6 +532,7 @@ def _mock_entry(
     *,
     legacy_login_token: bool = False,
     unique_id: str = "1000001",
+    options: dict[str, Any] | None = None,
 ) -> config_entries.ConfigEntry:
     data = {
         CONF_EMAIL: "user@example.test",
@@ -481,7 +549,7 @@ def _mock_entry(
         title="OK (user@example.test)",
         unique_id=unique_id,
         data=data,
-        options={},
+        options=options or {},
         source=config_entries.SOURCE_USER,
         discovery_keys=MappingProxyType({}),
         subentries_data=(),

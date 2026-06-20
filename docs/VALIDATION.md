@@ -65,8 +65,8 @@ docker compose run --rm \
   --entrypoint sh \
   homeassistant \
   -lc 'python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
-  python -c "import json, pathlib; pathlib.Path(\"/tmp/ok-manifest-requirements.txt\").write_text(\"\\n\".join(json.load(open(\"custom_components/ok/manifest.json\"))[\"requirements\"]) + \"\\n\")" && \
-  python -m pip install -e ".[dev]" -r /tmp/ok-manifest-requirements.txt >/tmp/ok-pip.log && \
+  python -m pip install -e ".[dev]" -r requirements-manifest.txt >/tmp/ok-pip.log && \
+  python -m pip_audit -r requirements-manifest.txt --progress-spinner off && \
   python -m ruff format --check custom_components tests tools && \
   python -m ruff check custom_components tests tools && \
   MYPYPATH=/usr/src/homeassistant python -m mypy && \
@@ -88,8 +88,8 @@ docker run --rm \
   -w /workspace \
   ghcr.io/home-assistant/home-assistant:stable \
   sh -lc 'python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
-  python -c "import json, pathlib; pathlib.Path(\"/tmp/ok-manifest-requirements.txt\").write_text(\"\\n\".join(json.load(open(\"custom_components/ok/manifest.json\"))[\"requirements\"]) + \"\\n\")" && \
-  python -m pip install -e ".[dev]" -r /tmp/ok-manifest-requirements.txt >/tmp/ok-pip.log && \
+  python -m pip install -e ".[dev]" -r requirements-manifest.txt >/tmp/ok-pip.log && \
+  python -m pip_audit -r requirements-manifest.txt --progress-spinner off && \
   python -m ruff format --check custom_components tests tools && \
   python -m ruff check custom_components tests tools && \
   MYPYPATH=/usr/src/homeassistant python -m mypy && \

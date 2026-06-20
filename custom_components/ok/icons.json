@@ -1,4 +1,13 @@
 {
+  "options": {
+    "step": {
+      "init": {
+        "sections": {
+          "advanced": "mdi:tune-variant"
+        }
+      }
+    }
+  },
   "entity": {
     "button": {
       "cancel_schedule": {

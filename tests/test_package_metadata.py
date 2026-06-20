@@ -14,3 +14,14 @@ def test_published_versions_match() -> None:
     manifest = json.loads((ROOT / "custom_components/ok/manifest.json").read_text(encoding="utf-8"))
 
     assert pyproject["project"]["version"] == manifest["version"] == __version__
+
+
+def test_manifest_requirements_mirror_matches_manifest() -> None:
+    manifest = json.loads((ROOT / "custom_components/ok/manifest.json").read_text(encoding="utf-8"))
+    mirror = [
+        line.strip()
+        for line in (ROOT / "requirements-manifest.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+
+    assert mirror == manifest["requirements"]

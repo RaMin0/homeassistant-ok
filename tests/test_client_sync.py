@@ -419,7 +419,7 @@ def test_transport_errors_are_mapped_to_client_exceptions() -> None:
 
 def test_invalid_json_response_raises_response_error() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text="not-json")
+        return httpx.Response(200, text="not-json", headers={"trace-id": "json-trace"})
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
         client = OkApiClient(http_client=http_client)
@@ -428,6 +428,7 @@ def test_invalid_json_response_raises_response_error() -> None:
 
     assert error.value.status_code == 200
     assert error.value.body == "not-json"
+    assert error.value.request_id == "json-trace"
 
 
 def test_unexpected_json_shapes_raise_response_error() -> None:
@@ -436,9 +437,16 @@ def test_unexpected_json_shapes_raise_response_error() -> None:
         ["not", "objects"],
         [],
     ]
+    request_count = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=responses.pop(0))
+        nonlocal request_count
+        request_count += 1
+        return httpx.Response(
+            200,
+            json=responses.pop(0),
+            headers={"trace-id": f"shape-trace-{request_count}"},
+        )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
         client = OkApiClient(
@@ -449,8 +457,11 @@ def test_unexpected_json_shapes_raise_response_error() -> None:
             timestamp_provider=lambda: 123,
         )
 
-        with pytest.raises(OkResponseError, match="get_stations"):
+        with pytest.raises(OkResponseError, match="get_stations") as error:
             client.get_stations()
+        assert error.value.status_code == 200
+        assert error.value.request_id == "shape-trace-1"
+        assert error.value.payload == {"not": "a list"}
         with pytest.raises(OkResponseError, match="get_stations"):
             client.get_stations()
         with pytest.raises(OkResponseError, match="get_station_prices"):

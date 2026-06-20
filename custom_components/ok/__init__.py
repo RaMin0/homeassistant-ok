@@ -62,6 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OkConfigEntry) -> bool:
     runtime_data: OkRuntimeData | None = None
     try:
         await coordinator.async_config_entry_first_refresh()
+        _cleanup_disabled_option_entities(hass, entry)
         runtime_data = OkRuntimeData(client=client, coordinator=coordinator)
         entry.runtime_data = runtime_data
         remove_update_listener = entry.add_update_listener(_async_update_listener)
@@ -158,6 +159,53 @@ def _entry_title_from_data(data: Mapping[str, Any]) -> str:
     if isinstance(email, str) and email:
         return f"OK ({email})"
     return "OK"
+
+
+def _cleanup_disabled_option_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove registry entries for optional feature groups that are now disabled."""
+    from homeassistant.const import Platform
+    from homeassistant.helpers import entity_registry as er
+
+    from .button import BUTTON_DESCRIPTIONS
+    from .const import (
+        CONF_ENABLE_CONTROL_BUTTONS,
+        CONF_ENABLE_ENERGY_PRICES,
+        CONF_INCLUDE_RECEIPTS,
+        DOMAIN,
+    )
+    from .sensor import SENSOR_DESCRIPTIONS
+
+    disabled_keys: dict[str, set[str]] = {}
+    if entry.options.get(CONF_INCLUDE_RECEIPTS, True) is False:
+        disabled_keys[Platform.SENSOR.value] = {
+            description.key for description in SENSOR_DESCRIPTIONS if description.receipt_required
+        }
+    if entry.options.get(CONF_ENABLE_ENERGY_PRICES, True) is False:
+        disabled_keys.setdefault(Platform.SENSOR.value, set()).update(
+            description.key
+            for description in SENSOR_DESCRIPTIONS
+            if description.energy_price_required
+        )
+    if entry.options.get(CONF_ENABLE_CONTROL_BUTTONS, True) is False:
+        disabled_keys[Platform.BUTTON.value] = {
+            description.key for description in BUTTON_DESCRIPTIONS if description.control_button
+        }
+    if not disabled_keys:
+        return
+
+    registry = er.async_get(hass)
+    for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if registry_entry.platform != DOMAIN:
+            continue
+        entity_domain = registry_entry.entity_id.partition(".")[0]
+        keys = disabled_keys.get(entity_domain)
+        if keys is None or not _unique_id_ends_with_key(registry_entry.unique_id, keys):
+            continue
+        registry.async_remove(registry_entry.entity_id)
+
+
+def _unique_id_ends_with_key(unique_id: str, keys: set[str]) -> bool:
+    return any(unique_id == key or unique_id.endswith(f"_{key}") for key in keys)
 
 
 def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiClient:

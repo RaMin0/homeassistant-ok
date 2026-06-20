@@ -21,6 +21,7 @@ from . import OkConfigEntry
 from .const import (
     ATTR_CHARGER_ID,
     ATTR_CONNECTOR_ID,
+    CONF_ENABLE_ENERGY_PRICES,
     CONF_INCLUDE_RECEIPTS,
     CONNECTOR_STATUS_BY_RAW_STATUS,
     CONNECTOR_STATUS_OPTIONS,
@@ -41,6 +42,7 @@ class OkSensorEntityDescription(SensorEntityDescription):  # type: ignore[misc]
     connector_scoped: bool = True
     coordinator_scoped: bool = False
     receipt_required: bool = False
+    energy_price_required: bool = False
 
 
 SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
@@ -50,6 +52,7 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         native_unit_of_measurement="DKK/kWh",
         state_class=SensorStateClass.MEASUREMENT,
         connector_scoped=False,
+        energy_price_required=True,
         value_fn=lambda coordinator, connector: _current_price(coordinator, connector),
         attrs_fn=lambda coordinator, connector: _energy_price_attrs(coordinator, connector),
     ),
@@ -230,11 +233,16 @@ async def async_setup_entry(
 
 
 def _sensor_descriptions_for_entry(entry: OkConfigEntry) -> tuple[OkSensorEntityDescription, ...]:
-    if entry.options.get(CONF_INCLUDE_RECEIPTS, True):
-        return SENSOR_DESCRIPTIONS
-    return tuple(
-        description for description in SENSOR_DESCRIPTIONS if not description.receipt_required
-    )
+    descriptions = SENSOR_DESCRIPTIONS
+    if entry.options.get(CONF_INCLUDE_RECEIPTS, True) is False:
+        descriptions = tuple(
+            description for description in descriptions if not description.receipt_required
+        )
+    if entry.options.get(CONF_ENABLE_ENERGY_PRICES, True) is False:
+        descriptions = tuple(
+            description for description in descriptions if not description.energy_price_required
+        )
+    return descriptions
 
 
 class OkSensor(OkEntity, SensorEntity):  # type: ignore[misc]

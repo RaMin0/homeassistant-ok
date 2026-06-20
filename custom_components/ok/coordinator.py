@@ -34,7 +34,12 @@ from .api import (
     OkTimeoutError,
     StationPricesResponse,
 )
-from .const import CONF_INCLUDE_RECEIPTS, DOMAIN
+from .const import (
+    CONF_ENABLE_ENERGY_PRICES,
+    CONF_ENABLE_REALTIME_UPDATES,
+    CONF_INCLUDE_RECEIPTS,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 _COORDINATOR_HEARTBEAT = timedelta(seconds=60)
@@ -187,6 +192,14 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         self._mark_refreshed(_SOURCE_ACCOUNT_SETTINGS, now)
         self._queue_refresh_trigger(_REFRESH_TRIGGER_SETUP)
 
+    @property
+    def _energy_prices_enabled(self) -> bool:
+        return self.entry.options.get(CONF_ENABLE_ENERGY_PRICES, True) is not False
+
+    @property
+    def _realtime_updates_enabled(self) -> bool:
+        return self.entry.options.get(CONF_ENABLE_REALTIME_UPDATES, True) is not False
+
     async def _async_update_data(self) -> OkData:
         async with self._refresh_lock:
             self._set_refresh_active(True)
@@ -268,6 +281,10 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         locations: tuple[ChargingLocation, ...],
         now: float,
     ) -> dict[str, StationPricesResponse]:
+        if not self._energy_prices_enabled:
+            self._force_prices_refresh = False
+            return {}
+
         station_ids = {
             connector.station_id
             for connector in _iter_connectors(locations)
@@ -331,7 +348,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         current_chargings: tuple[CurrentCharging, ...],
         now: float,
     ) -> tuple[ChargingReceipt, ...]:
-        if not self.entry.options.get(CONF_INCLUDE_RECEIPTS, True):
+        if self.entry.options.get(CONF_INCLUDE_RECEIPTS, True) is False:
             self._force_receipts_refresh = False
             return ()
 
@@ -628,6 +645,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         """Return whether a Firestore document needs a polled snapshot fallback."""
         if self._force_realtime_snapshots:
             return True
+        if not self._realtime_updates_enabled:
+            return True
         if self._realtime_watches_unavailable:
             return True
         if watch_key in self._realtime_watch_failures:
@@ -770,6 +789,17 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
 
     async def _async_sync_realtime_watches(self, data: OkData) -> None:
         """Keep Firestore realtime watchers aligned with current coordinator data."""
+        if not self._realtime_updates_enabled:
+            self._cancel_realtime_refresh()
+            self._cancel_realtime_retry()
+            await self._async_cancel_realtime_refresh_task()
+            await self._async_close_realtime_watch_handles(self._drain_realtime_watch_handles())
+            self._realtime_watch_failures.clear()
+            if self._realtime_watches_unavailable:
+                self._async_delete_realtime_unavailable_issue()
+            self._realtime_watches_unavailable = False
+            return
+
         if self._realtime_watches_unavailable or self._closing_realtime_watches:
             return
 
@@ -795,7 +825,11 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             await self._async_subscribe_realtime_watch(key)
 
     async def _async_subscribe_realtime_watch(self, key: _RealtimeWatchKey) -> None:
-        if self._realtime_watches_unavailable or self._closing_realtime_watches:
+        if (
+            not self._realtime_updates_enabled
+            or self._realtime_watches_unavailable
+            or self._closing_realtime_watches
+        ):
             return
         try:
             subscription = await self._async_create_realtime_subscription(key)
@@ -891,6 +925,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
 
     def _request_realtime_retry(self) -> None:
         self._realtime_retry_handle = None
+        if not self._realtime_updates_enabled:
+            return
         self._create_realtime_refresh_task("retry")
 
     async def _async_create_realtime_subscription(
@@ -1049,6 +1085,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         return None
 
     def _schedule_refresh_after_realtime_event(self) -> None:
+        if not self._realtime_updates_enabled:
+            return
         self._cancel_realtime_refresh()
         self._realtime_refresh_handle = self.hass.loop.call_later(
             _REALTIME_REFRESH_DELAY,
@@ -1066,7 +1104,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         self._create_realtime_refresh_task("event")
 
     def _create_realtime_refresh_task(self, reason: str) -> None:
-        if self._closing_realtime_watches:
+        if not self._realtime_updates_enabled or self._closing_realtime_watches:
             return
         task = self._realtime_refresh_task
         if task is not None and not task.done():
@@ -1078,7 +1116,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         self._realtime_refresh_task.add_done_callback(self._realtime_refresh_task_done)
 
     async def _async_request_realtime_refresh(self) -> None:
-        if self._closing_realtime_watches:
+        if not self._realtime_updates_enabled or self._closing_realtime_watches:
             return
         await self._async_refresh_with_trigger(_REFRESH_TRIGGER_REALTIME_RECONCILE)
 

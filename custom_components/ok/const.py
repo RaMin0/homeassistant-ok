@@ -15,6 +15,9 @@ PLATFORMS: Final = [
 CONF_APP_ID: Final = "app_id"
 CONF_DEVICE_FRIENDLY_ID: Final = "device_friendly_id"
 CONF_DEVICE_ID: Final = "device_id"
+CONF_ENABLE_CONTROL_BUTTONS: Final = "enable_control_buttons"
+CONF_ENABLE_ENERGY_PRICES: Final = "enable_energy_prices"
+CONF_ENABLE_REALTIME_UPDATES: Final = "enable_realtime_updates"
 CONF_INCLUDE_RECEIPTS: Final = "include_receipts"
 
 ATTR_CHARGER_ID: Final = "charger_id"

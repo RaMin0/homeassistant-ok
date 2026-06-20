@@ -6,7 +6,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from custom_components.ok.const import CONF_INCLUDE_RECEIPTS, CONNECTOR_STATUS_OPTIONS
+from custom_components.ok.const import (
+    CONF_ENABLE_ENERGY_PRICES,
+    CONF_INCLUDE_RECEIPTS,
+    CONNECTOR_STATUS_OPTIONS,
+)
 from custom_components.ok.sensor import SENSOR_DESCRIPTIONS, OkSensor, async_setup_entry
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
@@ -209,11 +213,19 @@ def test_connector_status_translations_cover_enum_options() -> None:
         },
         "last_session_cost": {"no_price_reason"},
     }
+    expected_option_keys = {
+        "include_receipts",
+        "enable_control_buttons",
+        "enable_energy_prices",
+    }
+    expected_advanced_option_keys = {"enable_realtime_updates"}
 
     for language in ("en", "da"):
         translations = json.loads(
             Path(f"custom_components/ok/translations/{language}.json").read_text()
         )
+        option_translations = translations["options"]["step"]["init"]
+        advanced_translations = option_translations["sections"]["advanced"]
         entity_translations = translations["entity"]["sensor"]
         assert (
             translations["device"]["account"]["name"]
@@ -222,6 +234,11 @@ def test_connector_status_translations_cover_enum_options() -> None:
                 "da": "OK-konto",
             }[language]
         )
+        assert set(option_translations["data"]) == expected_option_keys
+        assert set(option_translations["data_description"]) == expected_option_keys
+        assert advanced_translations["name"]
+        assert set(advanced_translations["data"]) == expected_advanced_option_keys
+        assert set(advanced_translations["data_description"]) == expected_advanced_option_keys
 
         for key in ("connector_status", "connector_status_connector"):
             states = entity_translations[key]["state"]
@@ -474,6 +491,27 @@ async def _test_last_session_sensors_are_option_gated(tmp_path: Path) -> None:
             "OK-CHARGER-001_1_schedule_end",
             "OK-CHARGER-001_1_schedule_duration",
         }
+    finally:
+        await hass.async_stop()
+
+
+def test_energy_price_sensor_is_option_gated(tmp_path: Path) -> None:
+    asyncio.run(_test_energy_price_sensor_is_option_gated(tmp_path))
+
+
+async def _test_energy_price_sensor_is_option_gated(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    try:
+        coordinator = EntityTestCoordinator(hass)
+        entry = EntitySetupEntry(coordinator, options={CONF_ENABLE_ENERGY_PRICES: False})
+        added: list[OkSensor] = []
+
+        await async_setup_entry(hass, entry, added.extend)
+
+        unique_ids = {entity.unique_id for entity in added}
+        assert "OK-CHARGER-001_energy_price" not in unique_ids
+        assert "1000001_last_refresh" in unique_ids
+        assert "OK-CHARGER-001_1_connector_status" in unique_ids
     finally:
         await hass.async_stop()
 

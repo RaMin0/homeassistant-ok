@@ -1,6 +1,9 @@
 name: Conventional Commits
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     types:
       - edited
@@ -18,35 +21,56 @@ on:
 permissions: {}
 
 jobs:
-  pull-request-title:
-    name: Pull Request Title
+  conventional-commit:
+    name: Conventional Commit
     runs-on: ubuntu-latest
     steps:
-      - name: Validate title
+      - name: Validate title or commit message
         env:
-          PR_TITLE: ${{ github.event.pull_request.title || inputs.title }}
+          INPUT_TITLE: ${{ inputs.title }}
         run: |
           python - <<'PY'
           from __future__ import annotations
 
+          import json
           import os
+          from pathlib import Path
           import re
           import sys
 
-          title = os.environ.get("PR_TITLE", "")
+          event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+          candidates: list[str] = []
+          if title := event.get("pull_request", {}).get("title"):
+              candidates.append(title)
+          elif title := os.environ.get("INPUT_TITLE"):
+              candidates.append(title)
+          elif commits := event.get("commits"):
+              candidates.extend(commit.get("message", "") for commit in commits)
+          elif message := event.get("head_commit", {}).get("message"):
+              candidates.append(message)
+          else:
+              print("No pull request title or commit message found to validate.")
+              sys.exit(1)
+
           pattern = re.compile(
               r"^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)"
               r"(\([^)]+\))?!?: .+"
           )
 
-          if pattern.fullmatch(title):
+          invalid = [
+              candidate.splitlines()[0]
+              for candidate in candidates
+              if not pattern.fullmatch(candidate.splitlines()[0])
+          ]
+          if not invalid:
               sys.exit(0)
 
-          print("Pull request title must use Conventional Commits.")
+          print("Pull request title or commit message must use Conventional Commits.")
           print("Examples:")
           print("  feat: add charger diagnostics")
           print("  fix(sensor): handle missing session cost")
           print("  docs!: document breaking setup change")
-          print(f"Received: {title!r}")
+          for title in invalid:
+              print(f"Received: {title!r}")
           sys.exit(1)
           PY

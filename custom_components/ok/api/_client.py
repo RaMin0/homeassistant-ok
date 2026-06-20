@@ -59,6 +59,14 @@ DEFAULT_STATUS_URL = (
 _MAX_ERROR_DETAIL_LENGTH = 200
 
 
+@dataclass(frozen=True, slots=True)
+class _OkApiResponse:
+    payload: JsonValue
+    status_code: int
+    headers: Mapping[str, str]
+    request_id: str | None
+
+
 @dataclass(slots=True)
 class OkApiConfig:
     """Runtime configuration for the OK API client."""
@@ -215,50 +223,62 @@ class _BaseOkApiClient:
     def _segment(self, value: str | int) -> str:
         return quote(str(value), safe="")
 
-    def _checked_command_response(self, response: JsonValue) -> JsonValue:
-        if not isinstance(response, Mapping):
+    def _checked_command_response(
+        self,
+        response: JsonValue | _OkApiResponse,
+    ) -> JsonValue | _OkApiResponse:
+        payload = _response_payload(response)
+        if not isinstance(payload, Mapping):
             return response
-        result = response.get("result")
+        result = payload.get("result")
         has_error_fields = (
-            response.get("errorcode") is not None or response.get("errordescription") is not None
+            payload.get("errorcode") is not None or payload.get("errordescription") is not None
         )
         if result == "Success" or (result is None and not has_error_fields):
-            return response
+            return payload
 
-        description = response.get("errordescription")
+        description = payload.get("errordescription")
         reason = (
             str(description)
             if isinstance(description, str) and description
-            else str(result or response.get("errorcode") or "unknown error")
+            else str(result or payload.get("errorcode") or "unknown error")
         )
         raise OkCommandError(
             f"OK command failed: {reason}",
             result=result,
-            error_code=response.get("errorcode"),
+            error_code=payload.get("errorcode"),
             error_description=reason,
-            payload=response,
+            payload=payload,
         )
 
-    def _expect_json_object(self, response: JsonValue, endpoint: str) -> JsonObject:
-        if not isinstance(response, dict):
-            raise OkResponseError(f"OK API returned an unexpected {endpoint} response body")
-        return response
+    def _expect_json_object(
+        self, response: JsonValue | _OkApiResponse, endpoint: str
+    ) -> JsonObject:
+        payload = _response_payload(response)
+        if not isinstance(payload, dict):
+            raise _unexpected_response_error(endpoint, response)
+        return payload
 
     def _expect_wrapped_json_object(
         self,
-        response: JsonValue,
+        response: JsonValue | _OkApiResponse,
         endpoint: str,
         wrapper_key: str,
     ) -> JsonObject:
         data = self._expect_json_object(response, endpoint)
         if not isinstance(data.get(wrapper_key), dict):
-            raise OkResponseError(f"OK API returned an unexpected {endpoint} response body")
+            raise _unexpected_response_error(endpoint, response)
         return data
 
-    def _expect_json_object_list(self, response: JsonValue, endpoint: str) -> list[JsonObject]:
-        if not isinstance(response, list) or any(not isinstance(item, dict) for item in response):
-            raise OkResponseError(f"OK API returned an unexpected {endpoint} response body")
-        return cast(list[JsonObject], response)
+    def _expect_json_object_list(
+        self,
+        response: JsonValue | _OkApiResponse,
+        endpoint: str,
+    ) -> list[JsonObject]:
+        payload = _response_payload(response)
+        if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+            raise _unexpected_response_error(endpoint, response)
+        return cast(list[JsonObject], payload)
 
 
 class OkApiClient(_BaseOkApiClient):
@@ -563,7 +583,7 @@ class OkApiClient(_BaseOkApiClient):
             )
         return self.config.device_friendly_id
 
-    def _service_post(self, path: str, payload: Mapping[str, JsonValue]) -> JsonValue:
+    def _service_post(self, path: str, payload: Mapping[str, JsonValue]) -> _OkApiResponse:
         return self._request_json(
             "POST",
             self._join_url(self.config.service_url, path),
@@ -577,7 +597,7 @@ class OkApiClient(_BaseOkApiClient):
         path: str,
         *,
         json_body: Mapping[str, JsonValue] | None = None,
-    ) -> JsonValue:
+    ) -> _OkApiResponse:
         return self._request_json(
             method,
             self._join_url(self.config.data_url, path),
@@ -585,7 +605,7 @@ class OkApiClient(_BaseOkApiClient):
             json_body=json_body,
         )
 
-    def _status_request(self, path: str) -> JsonValue:
+    def _status_request(self, path: str) -> _OkApiResponse:
         return self._request_json(
             "GET",
             self._join_url(self.config.status_url, path),
@@ -599,7 +619,7 @@ class OkApiClient(_BaseOkApiClient):
         *,
         headers: Mapping[str, str],
         json_body: Mapping[str, JsonValue] | None = None,
-    ) -> JsonValue:
+    ) -> _OkApiResponse:
         try:
             response = self._client.request(
                 method,
@@ -939,7 +959,11 @@ class AsyncOkApiClient(_BaseOkApiClient):
             )
         return self.config.device_friendly_id
 
-    async def _service_post(self, path: str, payload: Mapping[str, JsonValue]) -> JsonValue:
+    async def _service_post(
+        self,
+        path: str,
+        payload: Mapping[str, JsonValue],
+    ) -> _OkApiResponse:
         return await self._request_json(
             "POST",
             self._join_url(self.config.service_url, path),
@@ -953,7 +977,7 @@ class AsyncOkApiClient(_BaseOkApiClient):
         path: str,
         *,
         json_body: Mapping[str, JsonValue] | None = None,
-    ) -> JsonValue:
+    ) -> _OkApiResponse:
         return await self._request_json(
             method,
             self._join_url(self.config.data_url, path),
@@ -961,7 +985,7 @@ class AsyncOkApiClient(_BaseOkApiClient):
             json_body=json_body,
         )
 
-    async def _status_request(self, path: str) -> JsonValue:
+    async def _status_request(self, path: str) -> _OkApiResponse:
         return await self._request_json(
             "GET",
             self._join_url(self.config.status_url, path),
@@ -975,7 +999,7 @@ class AsyncOkApiClient(_BaseOkApiClient):
         *,
         headers: Mapping[str, str],
         json_body: Mapping[str, JsonValue] | None = None,
-    ) -> JsonValue:
+    ) -> _OkApiResponse:
         try:
             response = await self._client.request(
                 method,
@@ -993,19 +1017,56 @@ class AsyncOkApiClient(_BaseOkApiClient):
         return _parse_response(response)
 
 
-def _parse_response(response: httpx.Response) -> JsonValue:
+def _parse_response(response: httpx.Response) -> _OkApiResponse:
     if response.status_code >= 400:
         raise _status_error(response)
+    request_id = _request_id(response.headers)
     if not response.content:
-        return {}
+        return _OkApiResponse(
+            payload={},
+            status_code=response.status_code,
+            headers=response.headers,
+            request_id=request_id,
+        )
     try:
-        return cast(JsonValue, response.json())
+        return _OkApiResponse(
+            payload=cast(JsonValue, response.json()),
+            status_code=response.status_code,
+            headers=response.headers,
+            request_id=request_id,
+        )
     except ValueError as exc:
         raise OkResponseError(
             "OK API returned a non-JSON response body",
             status_code=response.status_code,
+            headers=response.headers,
             body=response.text,
+            request_id=request_id,
         ) from exc
+
+
+def _response_payload(response: JsonValue | _OkApiResponse) -> JsonValue:
+    if isinstance(response, _OkApiResponse):
+        return response.payload
+    return response
+
+
+def _unexpected_response_error(
+    endpoint: str,
+    response: JsonValue | _OkApiResponse,
+) -> OkResponseError:
+    if isinstance(response, _OkApiResponse):
+        return OkResponseError(
+            f"OK API returned an unexpected {endpoint} response body",
+            status_code=response.status_code,
+            headers=response.headers,
+            payload=response.payload,
+            request_id=response.request_id,
+        )
+    return OkResponseError(
+        f"OK API returned an unexpected {endpoint} response body",
+        payload=response,
+    )
 
 
 def _transport_error_message(exc: Exception, fallback: str) -> str:

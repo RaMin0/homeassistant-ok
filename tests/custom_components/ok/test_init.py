@@ -14,6 +14,10 @@ from custom_components.ok.const import (
     CONF_APP_ID,
     CONF_DEVICE_FRIENDLY_ID,
     CONF_DEVICE_ID,
+    CONF_ENABLE_CONTROL_BUTTONS,
+    CONF_ENABLE_ENERGY_PRICES,
+    CONF_INCLUDE_RECEIPTS,
+    DOMAIN,
     PLATFORMS,
 )
 from homeassistant import config_entries
@@ -25,6 +29,7 @@ from pytest import MonkeyPatch
 from custom_components.ok import (
     OkRuntimeData,
     _async_update_listener,
+    _cleanup_disabled_option_entities,
     _client_from_entry,
     _loaded_entries,
     async_migrate_entry,
@@ -490,3 +495,112 @@ async def _test_update_listener_and_device_removal() -> None:
         )
         is True
     )
+
+
+def test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities(tmp_path))
+
+
+async def _test_disabled_option_entity_cleanup_is_scoped_to_optional_ok_entities(
+    tmp_path: Path,
+) -> None:
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+
+    hass = HomeAssistant(str(tmp_path))
+    hass.config_entries = ConfigEntries(hass, {})
+    entry = config_entries.ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="OK",
+        unique_id="1000001",
+        data={},
+        options={
+            CONF_ENABLE_CONTROL_BUTTONS: False,
+            CONF_ENABLE_ENERGY_PRICES: False,
+            CONF_INCLUDE_RECEIPTS: False,
+        },
+        source=config_entries.SOURCE_USER,
+        discovery_keys=MappingProxyType({}),
+        subentries_data=(),
+    )
+    hass.config_entries._entries[entry.entry_id] = entry
+    if hasattr(dr, "async_setup"):
+        dr.async_setup(hass)
+    else:
+        hass.data[dr.DATA_REGISTRY] = dr.DeviceRegistry(hass)
+    await dr.async_load(hass)
+    await er.async_load(hass)
+    registry = er.async_get(hass)
+
+    try:
+        entity_ids = {
+            "energy_price": registry.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                "OK-CHARGER-001_energy_price",
+                suggested_object_id="ok_energy_price",
+                config_entry=entry,
+            ).entity_id,
+            "last_session": registry.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                "OK-CHARGER-001_last_session_cost",
+                suggested_object_id="ok_last_session_cost",
+                config_entry=entry,
+            ).entity_id,
+            "start": registry.async_get_or_create(
+                "button",
+                DOMAIN,
+                "OK-CHARGER-001_1_start_charging",
+                suggested_object_id="ok_start_charging",
+                config_entry=entry,
+            ).entity_id,
+            "restart": registry.async_get_or_create(
+                "button",
+                DOMAIN,
+                "OK-CHARGER-001_restart",
+                suggested_object_id="ok_restart",
+                config_entry=entry,
+            ).entity_id,
+            "force_refresh": registry.async_get_or_create(
+                "button",
+                DOMAIN,
+                "1000001_force_refresh",
+                suggested_object_id="ok_force_refresh",
+                config_entry=entry,
+            ).entity_id,
+            "connector_status": registry.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                "OK-CHARGER-001_1_connector_status",
+                suggested_object_id="ok_connector_status",
+                config_entry=entry,
+            ).entity_id,
+            "auto_start": registry.async_get_or_create(
+                "switch",
+                DOMAIN,
+                "OK-CHARGER-001_auto_start",
+                suggested_object_id="ok_auto_start",
+                config_entry=entry,
+            ).entity_id,
+            "foreign": registry.async_get_or_create(
+                "sensor",
+                "other",
+                "OK-CHARGER-001_energy_price",
+                suggested_object_id="other_energy_price",
+                config_entry=entry,
+            ).entity_id,
+        }
+
+        _cleanup_disabled_option_entities(hass, entry)
+
+        for key in ("energy_price", "last_session", "start", "restart"):
+            assert registry.async_get(entity_ids[key]) is None
+        for key in ("force_refresh", "connector_status", "auto_start", "foreign"):
+            assert registry.async_get(entity_ids[key]) is not None
+    finally:
+        await hass.async_stop()

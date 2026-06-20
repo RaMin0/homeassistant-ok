@@ -10,6 +10,7 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, __version__
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 from homeassistant.helpers.httpx_client import get_async_client
 
@@ -26,11 +27,25 @@ from .const import (
     CONF_APP_ID,
     CONF_DEVICE_FRIENDLY_ID,
     CONF_DEVICE_ID,
+    CONF_ENABLE_CONTROL_BUTTONS,
+    CONF_ENABLE_ENERGY_PRICES,
+    CONF_ENABLE_REALTIME_UPDATES,
     CONF_INCLUDE_RECEIPTS,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
+_OPTIONS_SECTION_ADVANCED = "advanced"
+_BASIC_BOOLEAN_OPTIONS: tuple[tuple[str, bool], ...] = (
+    (CONF_ENABLE_ENERGY_PRICES, True),
+    (CONF_INCLUDE_RECEIPTS, True),
+    (CONF_ENABLE_CONTROL_BUTTONS, True),
+)
+_ADVANCED_BOOLEAN_OPTIONS: tuple[tuple[str, bool], ...] = ((CONF_ENABLE_REALTIME_UPDATES, True),)
+_BOOLEAN_OPTIONS: tuple[tuple[str, bool], ...] = (
+    *_BASIC_BOOLEAN_OPTIONS,
+    *_ADVANCED_BOOLEAN_OPTIONS,
+)
 
 
 @dataclass(slots=True)
@@ -179,20 +194,83 @@ class OkOptionsFlowHandler(config_entries.OptionsFlow):  # type: ignore[misc]
         if user_input is not None:
             return self.async_create_entry(
                 title="",
-                data={CONF_INCLUDE_RECEIPTS: user_input[CONF_INCLUDE_RECEIPTS]},
+                data=_options_from_user_input(user_input, self.config_entry.options),
             )
         options = self.config_entry.options
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_INCLUDE_RECEIPTS,
-                        default=options.get(CONF_INCLUDE_RECEIPTS, True),
-                    ): selector.BooleanSelector(),
-                }
-            ),
+            data_schema=_options_schema(options),
         )
+
+
+def _options_schema(options: Mapping[str, Any]) -> vol.Schema:
+    return vol.Schema(
+        {
+            **{
+                vol.Required(
+                    key,
+                    default=options.get(key, default),
+                ): selector.BooleanSelector()
+                for key, default in _BASIC_BOOLEAN_OPTIONS
+            },
+            vol.Required(
+                _OPTIONS_SECTION_ADVANCED,
+                default=_advanced_options_default(options),
+            ): section(
+                vol.Schema(
+                    {
+                        vol.Required(
+                            key,
+                            default=options.get(key, default),
+                        ): selector.BooleanSelector()
+                        for key, default in _ADVANCED_BOOLEAN_OPTIONS
+                    }
+                ),
+                {"collapsed": True},
+            ),
+        }
+    )
+
+
+def _advanced_options_default(options: Mapping[str, Any]) -> dict[str, bool]:
+    return {
+        key: options.get(key, default) is not False for key, default in _ADVANCED_BOOLEAN_OPTIONS
+    }
+
+
+def _options_from_user_input(
+    user_input: Mapping[str, Any],
+    existing_options: Mapping[str, Any],
+) -> dict[str, bool]:
+    advanced_options = user_input.get(_OPTIONS_SECTION_ADVANCED, {})
+    if not isinstance(advanced_options, Mapping):
+        advanced_options = {}
+    options: dict[str, bool] = {}
+    for key, default in _BASIC_BOOLEAN_OPTIONS:
+        options[key] = bool(user_input.get(key, existing_options.get(key, default)))
+    for key, default in _ADVANCED_BOOLEAN_OPTIONS:
+        if key in advanced_options:
+            value = advanced_options[key]
+        elif key in user_input:
+            value = user_input[key]
+        else:
+            value = existing_options.get(key, default)
+        options[key] = bool(value)
+    return options
+
+
+def _required_config_value(value: object) -> str:
+    if isinstance(value, str) and value:
+        return value
+    raise CannotConnectError
+
+
+def _validated_client_config(client: AsyncOkApiClient) -> tuple[str, str, str]:
+    return (
+        _required_config_value(client.config.app_id),
+        _required_config_value(client.config.device_id),
+        _required_config_value(client.config.device_friendly_id),
+    )
 
 
 async def _validate_login(
@@ -223,15 +301,16 @@ async def _validate_login(
     result = settings.get("HentDeviceOpsaetningResult", {})
     user = result.get("Bruger", {})
     account_id = _account_id(settings)
+    app_id, device_id, device_friendly_id = _validated_client_config(client)
     title = _title(user, data[CONF_EMAIL])
     return OkValidationResult(
         title=title,
         unique_id=account_id,
         data={
             CONF_EMAIL: data[CONF_EMAIL],
-            CONF_APP_ID: client.config.app_id,
-            CONF_DEVICE_ID: client.config.device_id,
-            CONF_DEVICE_FRIENDLY_ID: client.config.device_friendly_id,
+            CONF_APP_ID: app_id,
+            CONF_DEVICE_ID: device_id,
+            CONF_DEVICE_FRIENDLY_ID: device_friendly_id,
         },
     )
 

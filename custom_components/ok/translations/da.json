@@ -56,10 +56,25 @@
       "init": {
         "title": "OK-indstillinger",
         "data": {
-          "include_receipts": "Seneste session-entiteter"
+          "include_receipts": "Seneste session-entiteter",
+          "enable_control_buttons": "Betjeningsknapper",
+          "enable_energy_prices": "Elpris-entiteter"
         },
         "data_description": {
-          "include_receipts": "Hent ladekvitteringer, og opret entiteterne for seneste session."
+          "include_receipts": "Hent ladekvitteringer, og opret entiteterne for seneste session.",
+          "enable_control_buttons": "Opret knapentiteter til start, stop, annuller ladeplan og genstart.",
+          "enable_energy_prices": "Hent elpriser, og opret elpris-entiteter."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Avanceret",
+            "data": {
+              "enable_realtime_updates": "Realtidsopdateringer"
+            },
+            "data_description": {
+              "enable_realtime_updates": "Brug Firestore-realtidslyttere til statusopdateringer for lader og ladesession."
+            }
+          }
         }
       }
     }

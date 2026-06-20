@@ -89,6 +89,9 @@ publishing steps are tracked in [PUBLISHING.md](PUBLISHING.md).
   sparingly.
 - The OK API client is intentionally bundled inside `custom_components/ok/api` for now so HACS
   installs the integration as one project.
+- Local brand assets are included for HACS and Home Assistant `2026.3+`. Home Assistant `2025.12.x`
+  does not serve local custom-integration brand assets, so frontend branding on that floor requires
+  the OK brand assets to exist in the Home Assistant brands repository.
 
 ## 🚀 Installation
 
@@ -124,15 +127,22 @@ values are redacted from diagnostics.
 
 ## 🔧 Options
 
+- **Energy price entities**: fetches OK energy prices and creates the price sensors compatible
+  with energy price cards.
 - **Last session entities**: fetches charging receipts and creates the optional last-session
   sensors. Disable this if you do not use last-session data or want to reduce API calls.
+- **Control buttons**: creates the start charging, stop charging, cancel schedule, and restart
+  button entities. The service actions remain available for automations.
+- **Advanced > Realtime updates**: uses Firestore realtime watchers for charger and active
+  charging session status. Disable this to use polled HTTP snapshot updates instead.
 
 Polling cadence is managed by the integration. Connector and charging status use realtime
-Firestore watches when available. Slow-changing REST data is refreshed on separate internal
-cadences to reduce OK cloud API traffic: charger metadata and prices are refreshed roughly every
-30 minutes, current charging sessions are refreshed more often while a session is active and less
-often while idle, and the full receipt list is only used as an infrequent backfill. When a known
-charging session ends, the integration uses OK's quick receipt endpoint for that session token.
+Firestore watches when that option is enabled and available. Slow-changing REST data is refreshed
+on separate internal cadences to reduce OK cloud API traffic: charger metadata and prices are
+refreshed roughly every 30 minutes, current charging sessions are refreshed more often while a
+session is active and less often while idle, and the full receipt list is only used as an
+infrequent backfill. When a known charging session ends, the integration uses OK's quick receipt
+endpoint for that session token.
 
 ## 🧭 Discovery
 
@@ -244,14 +254,15 @@ client is async and uses Home Assistant's shared `httpx` client.
 ## 📊 Example Lovelace Price Chart
 
 Use the integration's energy price sensor entity in ApexCharts. The exact entity ID depends on your
-charger name.
+charger name. This example uses a 34-hour rolling window with a one-hour left offset, matching the
+local dashboard copy.
 
 ```yaml
 type: custom:apexcharts-card
-graph_span: 24h
+graph_span: 34h
 span:
   start: hour
-  offset: "-2h"
+  offset: "-1h"
 series:
   - entity: sensor.charger_energy_price
     type: column

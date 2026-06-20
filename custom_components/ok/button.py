@@ -15,6 +15,7 @@ from .action import (
     require_active_charging_token,
     validate_command_response,
 )
+from .const import CONF_ENABLE_CONTROL_BUTTONS
 from .coordinator import OkConnectorRef, OkDataUpdateCoordinator
 from .entity import OkEntity
 
@@ -28,23 +29,27 @@ class OkButtonEntityDescription(ButtonEntityDescription):  # type: ignore[misc]
     available_fn: Callable[[OkButton], bool] | None = None
     connector_scoped: bool = True
     coordinator_scoped: bool = False
+    control_button: bool = False
 
 
 BUTTON_DESCRIPTIONS = (
     OkButtonEntityDescription(
         key="start_charging",
         translation_key="start_charging",
+        control_button=True,
         press_fn=lambda entity: entity._async_start_charging(),
     ),
     OkButtonEntityDescription(
         key="stop_charging",
         translation_key="stop_charging",
+        control_button=True,
         press_fn=lambda entity: entity._async_stop_charging(),
         available_fn=lambda entity: entity._active_token() is not None,
     ),
     OkButtonEntityDescription(
         key="cancel_schedule",
         translation_key="cancel_schedule",
+        control_button=True,
         press_fn=lambda entity: entity._async_cancel_schedule(),
         available_fn=lambda entity: entity._active_token() is not None,
     ),
@@ -54,6 +59,7 @@ BUTTON_DESCRIPTIONS = (
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         connector_scoped=False,
+        control_button=True,
         press_fn=lambda entity: entity._async_restart(),
     ),
     OkButtonEntityDescription(
@@ -78,8 +84,9 @@ async def async_setup_entry(
 
     @callback  # type: ignore[untyped-decorator]
     def async_add_ok_entities() -> None:
+        descriptions = _button_descriptions_for_entry(entry)
         entities: list[OkButton] = []
-        for description in BUTTON_DESCRIPTIONS:
+        for description in descriptions:
             if not description.coordinator_scoped:
                 continue
             unique_id = _unique_id(
@@ -94,7 +101,7 @@ async def async_setup_entry(
             known.add(unique_id)
             entities.append(OkButton(coordinator, _COORDINATOR_CONNECTOR, description))
         for connector in coordinator.connectors():
-            for description in BUTTON_DESCRIPTIONS:
+            for description in descriptions:
                 if description.coordinator_scoped:
                     continue
                 unique_id = _unique_id(
@@ -113,6 +120,14 @@ async def async_setup_entry(
 
     async_add_ok_entities()
     entry.async_on_unload(coordinator.async_add_listener(async_add_ok_entities))
+
+
+def _button_descriptions_for_entry(entry: OkConfigEntry) -> tuple[OkButtonEntityDescription, ...]:
+    if entry.options.get(CONF_ENABLE_CONTROL_BUTTONS, True) is not False:
+        return BUTTON_DESCRIPTIONS
+    return tuple(
+        description for description in BUTTON_DESCRIPTIONS if not description.control_button
+    )
 
 
 class OkButton(OkEntity, ButtonEntity):  # type: ignore[misc]

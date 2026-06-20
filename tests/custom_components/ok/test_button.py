@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from custom_components.ok.api import OkAuthenticationError
 from custom_components.ok.button import BUTTON_DESCRIPTIONS, OkButton, async_setup_entry
+from custom_components.ok.const import CONF_ENABLE_CONTROL_BUTTONS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceEntryType
@@ -208,5 +209,23 @@ async def _test_button_setup_adds_coordinator_scoped_without_connectors(tmp_path
 
         assert [entity.unique_id for entity in added] == ["1000001_force_refresh"]
         assert added[0].device_info["identifiers"] == {("ok", "account_1000001")}
+    finally:
+        await hass.async_stop()
+
+
+def test_control_buttons_are_option_gated(tmp_path: Path) -> None:
+    asyncio.run(_test_control_buttons_are_option_gated(tmp_path))
+
+
+async def _test_control_buttons_are_option_gated(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    try:
+        coordinator = EntityTestCoordinator(hass)
+        entry = EntitySetupEntry(coordinator, options={CONF_ENABLE_CONTROL_BUTTONS: False})
+        added: list[OkButton] = []
+
+        await async_setup_entry(hass, entry, added.extend)
+
+        assert [entity.unique_id for entity in added] == ["1000001_force_refresh"]
     finally:
         await hass.async_stop()

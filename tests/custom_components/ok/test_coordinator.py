@@ -15,7 +15,12 @@ from custom_components.ok.api import (
     OkConnectionError,
     OkRateLimitError,
 )
-from custom_components.ok.const import CONF_INCLUDE_RECEIPTS, DOMAIN
+from custom_components.ok.const import (
+    CONF_ENABLE_ENERGY_PRICES,
+    CONF_ENABLE_REALTIME_UPDATES,
+    CONF_INCLUDE_RECEIPTS,
+    DOMAIN,
+)
 from custom_components.ok.coordinator import (
     OkData,
     OkDataUpdateCoordinator,
@@ -65,6 +70,7 @@ class FakeOkClient:
         self.station_status = "Charging"
         self.station_status_updated = "2025-06-09T12:24:11Z"
         self.connector_session_power_w = 3522
+        self.charging_status_updated = "2025-06-05T12:10:12.702511Z"
         self.station_watch_configuration_error = False
         self.station_watch_failures = 0
         self.station_watch_attempts = 0
@@ -138,7 +144,7 @@ class FakeOkClient:
                 "scheduledEnd": "2025-06-05T13:00:00Z",
             },
             create_time="2025-06-04T23:04:23.378539Z",
-            update_time="2025-06-05T12:10:12.702511Z",
+            update_time=self.charging_status_updated,
             raw={},
         )
 
@@ -427,6 +433,77 @@ async def _test_coordinator_skips_receipts_when_option_is_disabled(tmp_path: Pat
         assert coordinator.data is not None
         assert coordinator.data.receipts == ()
         assert coordinator.last_receipt_for("OK-CHARGER-001") is None
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_skips_energy_prices_when_option_is_disabled(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_skips_energy_prices_when_option_is_disabled(tmp_path))
+
+
+async def _test_coordinator_skips_energy_prices_when_option_is_disabled(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+    entry.options = {CONF_ENABLE_ENERGY_PRICES: False}
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.data is not None
+        assert coordinator.data.prices == {}
+        assert coordinator.prices_for("OK-CHARGER-001") is None
+        assert client.price_calls == 0
+
+        await coordinator.async_force_full_refresh()
+
+        assert client.price_calls == 0
+        assert coordinator.poll_attributes["energy_prices"] is None
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_polls_status_snapshots_when_realtime_option_is_disabled(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_test_coordinator_polls_status_snapshots_when_realtime_option_is_disabled(tmp_path))
+
+
+async def _test_coordinator_polls_status_snapshots_when_realtime_option_is_disabled(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+    entry.options = {CONF_ENABLE_REALTIME_UPDATES: False}
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        assert client.station_status_calls == 1
+        assert client.charging_status_calls == 1
+        assert client.station_watch_attempts == 0
+        assert client.station_watch_callbacks == {}
+        assert client.charging_watch_callbacks == {}
+        assert coordinator.station_status_for("OK-CHARGER-001", 1).fields["status"] == "Charging"
+
+        client.station_status = "Available"
+        client.station_status_updated = "2025-06-09T12:30:00Z"
+        client.connector_session_power_w = 7200
+        client.charging_status_updated = "2025-06-05T12:11:12.702511Z"
+        await coordinator.async_request_refresh()
+
+        assert client.station_status_calls == 2
+        assert client.charging_status_calls == 2
+        assert coordinator.station_status_for("OK-CHARGER-001", 1).fields["status"] == "Available"
+        active = coordinator.active_charging_for("OK-CHARGER-001", 1)
+        assert coordinator.charging_status_for(active).fields["powerInW"] == 7200
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()

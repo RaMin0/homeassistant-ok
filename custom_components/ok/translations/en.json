@@ -56,10 +56,25 @@
       "init": {
         "title": "OK options",
         "data": {
-          "include_receipts": "Last session entities"
+          "include_receipts": "Last session entities",
+          "enable_control_buttons": "Control buttons",
+          "enable_energy_prices": "Energy price entities"
         },
         "data_description": {
-          "include_receipts": "Fetch charging receipts and create the last session entities."
+          "include_receipts": "Fetch charging receipts and create the last session entities.",
+          "enable_control_buttons": "Create start, stop, cancel schedule, and restart button entities.",
+          "enable_energy_prices": "Fetch energy prices and create energy price entities."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "enable_realtime_updates": "Realtime updates"
+            },
+            "data_description": {
+              "enable_realtime_updates": "Use Firestore realtime watchers for charger and charging session status updates."
+            }
+          }
         }
       }
     }

@@ -27,11 +27,21 @@ class OkResponseError(OkApiError):
     """Raised when the API returns an invalid or unsupported response body."""
 
     def __init__(
-        self, message: str, *, status_code: int | None = None, body: str | None = None
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        headers: Mapping[str, str] | None = None,
+        payload: Any = None,
+        body: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.headers = dict(headers or {})
+        self.payload = payload
         self.body = body
+        self.request_id = request_id
 
 
 class OkCommandError(OkApiError):
