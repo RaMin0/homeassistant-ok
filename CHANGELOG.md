@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-06-21)
+
+### Bug Fixes
+
+- **ci**: Restore release version commits
+  ([`6cff8e3`](https://github.com/RaMin0/homeassistant-ok/commit/6cff8e3c7f9bb273444edf7d82ee071041ea818f))
+
+### Continuous Integration
+
+- Upload hacs asset during semantic release
+  ([`fd7a879`](https://github.com/RaMin0/homeassistant-ok/commit/fd7a879201261379ddf034b680e052829dc5c26e))
+
+
 ## v0.2.0 (2026-06-20)
 
 ### Bug Fixes
