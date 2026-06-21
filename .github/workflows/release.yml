@@ -51,7 +51,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
-          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Confirm validated commit
         if: ${{ github.event_name == 'workflow_run' }}
@@ -71,7 +70,7 @@ jobs:
         uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10.5.3
         with:
           build: "false"
-          github_token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           git_committer_name: github-actions[bot]
           git_committer_email: 41898282+github-actions[bot]@users.noreply.github.com
           changelog: "true"
@@ -116,7 +115,7 @@ jobs:
       - name: Upload HACS release asset
         if: ${{ steps.release.outputs.released == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload \
             "${{ steps.release.outputs.tag }}" \
