@@ -278,17 +278,13 @@ span:
 series:
   - entity: sensor.charger_energy_price
     type: column
+    show:
+      extremas: min
+    float_precision: 2
     data_generator: |
-      var today = entity.attributes.raw_today.map((row) => {
-        return [new Date(row["hour"]).getTime(), row["price"]];
+      return (entity.attributes.prices || []).map((row) => {
+        return [new Date(row.start).getTime(), row.price];
       });
-      if (entity.attributes.tomorrow_valid) {
-        var tomorrow = entity.attributes.raw_tomorrow.map((row) => {
-          return [new Date(row["hour"]).getTime(), row["price"]];
-        });
-        return today.concat(tomorrow);
-      }
-      return today;
 ```
 
 ## 🔒 Diagnostics And Privacy
