@@ -53,6 +53,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
 
       - name: Confirm validated commit
+        id: validated_commit
         if: ${{ github.event_name == 'workflow_run' }}
         env:
           EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -62,11 +63,15 @@ jobs:
             echo "main moved after Validate completed."
             echo "Expected: $EXPECTED_SHA"
             echo "Actual:   $actual_sha"
-            exit 1
+            echo "Skipping release for this superseded validation run."
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "stale=false" >> "$GITHUB_OUTPUT"
 
       - name: Semantic version release
         id: release
+        if: ${{ github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true' }}
         uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10.5.3
         with:
           build: "false"
@@ -77,8 +82,16 @@ jobs:
           push: "true"
           vcs_release: "true"
 
+      - name: Stop when validation run is superseded
+        if: ${{ github.event_name == 'workflow_run' && steps.validated_commit.outputs.stale == 'true' }}
+        run: echo "No release needed because a newer main commit has already been validated."
+
       - name: Stop when no release is needed
-        if: ${{ steps.release.outputs.released != 'true' }}
+        if: >-
+          ${{
+            (github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true') &&
+            steps.release.outputs.released != 'true'
+          }}
         run: echo "No release needed for this commit."
 
       - name: Check out released commit
