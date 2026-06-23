@@ -10,6 +10,10 @@ charger name. This example uses the normalized `prices` timeline attribute, a 34
 and a one-hour left offset. The tooltip value unit is inherited from the entity's
 `unit_of_measurement`.
 
+<p>
+  <img src="media/apexcharts-energy-price.png" alt="ApexCharts energy price card showing OK hourly electricity prices." width="760">
+</p>
+
 ```yaml
 type: custom:apexcharts-card
 apex_config:
@@ -40,6 +44,10 @@ Use the connector status sensor as the main entity and call OK actions from butt
 service actions target Home Assistant entities, so dashboards do not need raw OK charger IDs. The
 restart button is disabled by default in the entity registry; enable it first if you want it on a
 dashboard.
+
+<p>
+  <img src="media/compact-charger-controls.png" alt="Compact Home Assistant charger card with start, stop, schedule, and restart controls." width="760">
+</p>
 
 ```yaml
 type: entity
@@ -90,6 +98,10 @@ GitHub/repository URLs, use the manual copy method; Home Assistant will load the
 Create a new script from the blueprint, select the OK connector status sensor once, then call that
 script from a dashboard button. Home Assistant prompts for `scheduled_start` and `scheduled_end`
 when the script runs.
+
+<p>
+  <img src="media/schedule-charging-script-prompt.png" alt="Home Assistant script dialog prompting for OK charging schedule start and end times." width="560">
+</p>
 
 To edit an existing schedule after it has been created, use the schedule from and schedule to
 datetime entities. They show the current OK schedule values and open Home Assistant's native

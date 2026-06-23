@@ -40,6 +40,30 @@ watcher starts successfully. If Firestore runtime support is missing or misconfi
 Assistant creates a non-fixable repair issue and the integration continues with polling. Transient
 watcher failures retry with bounded backoff.
 
+## How Realtime Updates Work
+
+Realtime updates are used for data that OK publishes through Firestore documents:
+
+- Connector status, such as available, preparing, charging, suspended, or faulted.
+- Charging-session status, including the current session state used by connector session entities.
+
+When **Realtime updates** is enabled, the integration starts Firestore document watches for those
+sources. Firestore's Python watcher is synchronous, so the integration runs watch setup and cleanup
+outside Home Assistant's event loop, then schedules state updates back onto the event loop when OK
+pushes a document change.
+
+Polling is still used for data that is not fully covered by those realtime documents:
+
+- Account and charger discovery.
+- Charger metadata.
+- Energy prices.
+- Receipt and last-session data.
+- Watcher recovery and HTTP snapshots after startup, retries, or force refresh.
+
+If realtime updates are disabled, connector and charging-session status continue to update through
+polling and HTTP snapshots. If realtime updates are enabled but the watcher cannot start, Home
+Assistant raises a repair issue and the integration keeps polling instead.
+
 If updates look delayed:
 
 - Confirm **Realtime updates** is enabled in the integration options.

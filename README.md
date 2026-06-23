@@ -172,6 +172,8 @@ through an async wrapper so watch setup, events, and cleanup stay off Home Assis
 
 Some data is not fully covered by realtime documents, including charger discovery, price windows,
 active charging lists, receipts, and watcher recovery. Polling remains active for those sources.
+The detailed behavior and fallback path are documented in
+[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#how-realtime-updates-work).
 
 ## 🔒 Support, Diagnostics, And Security
 
