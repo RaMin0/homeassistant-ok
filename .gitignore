@@ -38,7 +38,6 @@ node_modules/
 
 # Local AI/dev tooling
 .codex/
-MARKETING.md
 
 # Home Assistant local Docker runtime state
 docker/ha/config/
