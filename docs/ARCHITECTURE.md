@@ -59,7 +59,8 @@ The coordinator combines REST-backed OK app endpoints with Firestore realtime do
 - Energy prices are refreshed roughly every 30 minutes per charger.
 - Current charging sessions are refreshed every 60 seconds while active and every 5 minutes when
   idle.
-- Full receipt lists are refreshed infrequently and only when last-session entities are enabled.
+- Full receipt lists are fetched on setup, force refresh, and roughly every 12 hours when
+  last-session entities are enabled.
 - Quick receipt data is fetched for known sessions after they finish.
 - Connector status and charging-session status prefer Firestore realtime watches, with HTTP
   snapshot fallback when watches are unavailable, failed, missing, or force refresh is requested.
@@ -72,8 +73,8 @@ safe:
 - Watch subscription setup and cleanup are offloaded through Home Assistant's executor.
 - Watch callbacks schedule work back onto Home Assistant's event loop.
 - Watch failures use bounded retry/backoff.
-- A repair issue is created when realtime updates cannot start because required Firestore runtime
-  support is unavailable.
+- A repair issue is created when realtime updates cannot start because Firestore runtime support is
+  missing or misconfigured. Transient watcher failures retry with bounded backoff instead.
 
 Do not move sync Firestore watch work onto the event loop.
 

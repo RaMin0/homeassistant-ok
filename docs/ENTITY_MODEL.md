@@ -9,7 +9,7 @@ IDs are illustrative. Stable identity comes from each entity's `unique_id`.
 | Device | Scope | Identifier | Notes |
 | --- | --- | --- | --- |
 | OK Account | Account/service | `ok:account_<config unique id or entry id>` | Translation key `account`; diagnostics and account-level refresh live here. |
-| Charger | Physical charger | `ok:<station_id>` | Uses OK charger/station ID, vendor/model/serial/firmware when available, and location name as suggested area. |
+| Charger | Physical charger | `ok:<station_id>` | Uses OK charger/station ID plus vendor/model/serial/firmware when available. The integration does not create or suggest Home Assistant areas. |
 
 ## Naming Rules
 
@@ -47,14 +47,14 @@ for single-connector chargers.
 | Sensor | `connector_status` | Connector | Enabled | None | Firestore charger status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_power` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_energy` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
-| Sensor | `schedule_start` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
-| Sensor | `schedule_end` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
-| Sensor | `schedule_duration` | Connector | Enabled | None | Derived from `schedule_start` and `schedule_end`. |
+| Sensor | `schedule_duration` | Connector | Enabled | None | Derived from the active schedule start/end in the charging-session status document. |
 | Sensor | `last_session_ended` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_started` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_duration` | Charger | Option-controlled | None | Derived from last receipt start/end. |
 | Sensor | `last_session_energy` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_cost` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
+| DateTime | `schedule_from` | Connector | Enabled | None | Active schedule start from the charging-session status document; edits existing schedules. |
+| DateTime | `schedule_to` | Connector | Enabled | None | Active schedule end from the charging-session status document; edits existing schedules. |
 | Switch | `auto_start` | Charger | Enabled | Config | Charger metadata and set-auto-start command. |
 | Button | `start_charging` | Connector | Enabled | None | OK start charging command. |
 | Button | `stop_charging` | Connector | Enabled | None | OK stop charging command; requires active session token. |
@@ -64,6 +64,10 @@ for single-connector chargers.
 
 `last_session_*` entities are created only when the `include_receipts` option is enabled. That
 option is enabled by default in the config flow/options flow.
+
+`schedule_from` and `schedule_to` are datetime entities, not sensors. Their state is empty until
+OK reports an active schedule, and changing either value updates the existing schedule. Create a
+new schedule with the `ok.schedule_charging` action or the schedule script blueprint.
 
 ## Important Attributes
 
