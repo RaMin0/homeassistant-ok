@@ -1,0 +1,30 @@
+- name: bug
+  color: "d73a4a"
+  description: Something is broken or regressed.
+- name: setup
+  color: "c2e0c6"
+  description: Config flow, reauthentication, install, reload, or startup issue.
+- name: enhancement
+  color: "a2eeef"
+  description: New feature or improvement request.
+- name: api-change
+  color: "d73a4a"
+  description: OK app API behavior, authentication, command, or Firestore document changed.
+- name: charger
+  color: "0e8a16"
+  description: Charger or connector behavior.
+- name: energy-price
+  color: "fbca04"
+  description: Energy price sensors, attributes, cards, or automations.
+- name: realtime
+  color: "1d76db"
+  description: Firestore watcher or realtime update behavior.
+- name: documentation
+  color: "0075ca"
+  description: README, docs, examples, or launch copy.
+- name: needs-info
+  color: "ededed"
+  description: Waiting for logs, diagnostics, versions, or reproduction details.
+- name: good-first-issue
+  color: "7057ff"
+  description: Small, well-scoped contribution.

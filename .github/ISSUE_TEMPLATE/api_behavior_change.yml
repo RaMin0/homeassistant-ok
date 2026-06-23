@@ -1,13 +1,13 @@
-name: Bug report
-description: Report a reproducible problem with the OK integration.
-title: "fix: "
+name: OK API behavior change
+description: Report a suspected OK app API, command, authentication, or realtime update change.
+title: "fix(api): "
 labels:
-  - bug
+  - api-change
 body:
   - type: markdown
     attributes:
       value: |
-        Do not paste passwords, tokens, `.storage` files, `secrets.yaml`, or unsanitized OK API captures.
+        Do not paste passwords, tokens, `.storage` files, `secrets.yaml`, device identifiers, or unsanitized OK API captures.
   - type: input
     id: integration_version
     attributes:
@@ -24,30 +24,33 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: install_method
+    id: affected_area
     attributes:
-      label: Installation method
+      label: Affected area
       options:
-        - HACS custom repository
-        - Manual copy
-        - Development checkout
+        - Login or reauthentication
+        - Charger discovery
+        - Connector status
+        - Realtime updates
+        - Start/stop charging
+        - Scheduling
+        - Energy prices
+        - Receipts or last-session data
+        - Other
     validations:
       required: true
   - type: textarea
-    id: problem
+    id: app_behavior
     attributes:
-      label: Problem
-      description: Describe what happened and what you expected.
+      label: OK app behavior
+      description: Describe whether the same account/charger/action still works in the OK app.
     validations:
       required: true
   - type: textarea
-    id: reproduce
+    id: integration_behavior
     attributes:
-      label: Steps to reproduce
-      placeholder: |
-        1. Go to ...
-        2. Call action ...
-        3. Observe ...
+      label: Home Assistant behavior
+      description: Describe what changed in Home Assistant and when it started.
     validations:
       required: true
   - type: textarea
@@ -56,8 +59,3 @@ body:
       label: Relevant logs
       description: Paste only relevant, redacted Home Assistant logs.
       render: text
-  - type: textarea
-    id: diagnostics
-    attributes:
-      label: Diagnostics
-      description: Attach or summarize the redacted diagnostics download if available.
