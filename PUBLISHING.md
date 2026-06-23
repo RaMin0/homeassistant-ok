@@ -32,12 +32,12 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   - `Python / HA stable`
   - `Bundled API client / Python 3.13`
   - `Bundled API client / Python 3.14`
-  - `Conventional Commit`
-- The release workflow commits version/changelog updates back to `main`. If branch protection
-  blocks `GITHUB_TOKEN` from pushing release commits, use a dedicated GitHub App or fine-grained
-  release token with contents write access and allow that actor to bypass the required checks.
-- Automated release jobs intentionally skip while the repository is private. Make the repository
-  public before creating the first release.
+  - `Conventional Commits`
+- The release workflow uses only the built-in GitHub Actions token. If branch protection blocks
+  that token from pushing version/changelog release commits, prefer a PR-based release flow or a
+  dedicated GitHub App. Do not use a personal access token copied from a maintainer account.
+- Automated release jobs intentionally skip while the repository is private. Keep the repository
+  public when creating releases.
 - Add repository topics:
   - `home-assistant`
   - `hacs`
@@ -48,18 +48,15 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 
 ## Release Flow
 
-### First Public Release
+### Current Baseline Release
 
-After the first push to GitHub, create an initial `v0.1.0` tag and GitHub Release that matches the
-version already present in `pyproject.toml`, `custom_components/ok/manifest.json`, and
-`custom_components/ok/api/_version.py`. This gives Python Semantic Release a correct baseline for
-future automated releases.
+The current public baseline is `v0.3.0`. It matches the version in `pyproject.toml`,
+`custom_components/ok/manifest.json`, and `custom_components/ok/api/_version.py`, and the GitHub
+Release includes `ok.zip` for HACS.
 
-The first release can be created manually after the GitHub workflows pass. Do not publish to PyPI.
-Publishing the manual GitHub Release triggers the `HACS Release Asset` job, which uploads `ok.zip`
-for HACS. The repository is configured for HACS release-asset installation once `ok.zip` exists.
-Before keeping or adding `zip_release` metadata in `hacs.json`, verify every public release users
-can select in HACS includes an `ok.zip` asset.
+Do not publish to PyPI while the OK API client remains bundled. The repository uses HACS
+release-asset installation through `zip_release`, so every public release users can select in HACS
+must include an `ok.zip` asset built from the same released source.
 
 ### Automated Releases
 
@@ -77,9 +74,9 @@ can select in HACS includes an `ok.zip` asset.
 7. The workflow checks out the released commit, builds `ok.zip` from `custom_components/ok`, and
    uploads that asset to the GitHub Release for HACS.
 
-The `release.published` path also builds and uploads `ok.zip` for manually created releases. That
-path stamps the release tag version into the files inside the archive only; it does not commit
-version or changelog changes back to `main`. Use automated releases after the initial baseline.
+Manual GitHub releases are not currently automated. If a manual release is ever needed, build and
+upload `ok.zip` from the same commit as the tag, and keep all version files and `CHANGELOG.md`
+aligned before publishing it. Prefer automated releases for normal changes.
 
 No PyPI publishing is configured while the OK API client remains bundled inside the Home Assistant
 custom component.

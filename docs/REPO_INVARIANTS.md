@@ -47,12 +47,13 @@ The version must stay synchronized across:
 - `custom_components/ok/api/_version.py`
 - `CHANGELOG.md`
 
-Semantic release is configured to update the first three and the changelog after the first public
-release baseline is established.
+Semantic release is configured to update the first three and the changelog from the established
+public release baseline.
 
 The release workflow creates `ok.zip` from `custom_components/ok` and uploads it to the GitHub
 Release. Do not include repository root files, Docker config, tests, docs, or local runtime state
-in that archive. Only add HACS `zip_release` metadata after a matching release asset exists.
+in that archive. HACS `zip_release` metadata is enabled, so every public release users can install
+from HACS must include a matching `ok.zip` asset.
 
 ## Tests And API Calls
 

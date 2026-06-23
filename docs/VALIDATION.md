@@ -141,10 +141,13 @@ find . \
   \) -print
 ```
 
-Also check for stale version references:
+Also check that release metadata is synchronized and no stale release versions are still present:
 
 ```bash
-rg -n "0\\.2\\.0|v0\\.2\\.0" .
+version="$(awk -F'"' '/^version = / {print $2; exit}' pyproject.toml)"
+rg -n "version = \"$version\"|\"version\": \"$version\"|__version__ = \"$version\"|## v$version" \
+  pyproject.toml custom_components/ok/manifest.json custom_components/ok/api/_version.py CHANGELOG.md
+rg -n "0\\.3\\.1|v0\\.3\\.1" .
 ```
 
 If generated caches exist, remove them outside integration code. Do not add integration code that

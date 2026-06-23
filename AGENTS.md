@@ -94,9 +94,10 @@ Use the current vocabulary consistently:
   - `connector_status`
   - `connector_session_power`
   - `connector_session_energy`
-  - `schedule_start`
-  - `schedule_end`
   - `schedule_duration`
+- Connector-scoped schedule datetime controls:
+  - `schedule_from`
+  - `schedule_to`
 - Last completed receipt/session entities use `last_session_*`.
 - Diagnostics use `last_refresh` at account scope and `charger_last_refresh` at charger scope.
 
