@@ -41,7 +41,7 @@ for single-connector chargers.
 
 | Platform | Key | Scope | Default | Category | Main data source |
 | --- | --- | --- | --- | --- | --- |
-| Sensor | `energy_price` | Charger | Enabled | None | OK station prices REST endpoint. |
+| Sensor | `energy_price` | Charger | Enabled | None | OK price REST endpoint for the charger. |
 | Sensor | `last_refresh` | Account | Enabled | Diagnostic | Coordinator refresh timestamps. |
 | Sensor | `charger_last_refresh` | Charger | Enabled | Diagnostic | Connector status/session snapshot and receipt refresh timestamps. |
 | Sensor | `connector_status` | Connector | Enabled | None | Firestore charger status watch with HTTP snapshot fallback. |
@@ -174,5 +174,6 @@ When adding, removing, or renaming an entity:
 - Update `custom_components/ok/icons.json`.
 - Update tests.
 - Update this document and README when user-facing behavior changes.
-- Consider stale entities in developer Home Assistant instances, but do not add temporary cleanup
-  workarounds to integration code.
+- Consider stale entities in developer Home Assistant instances. Permanent, tested registry cleanup
+  is allowed when entities are removed or option-disabled; one-off developer cleanup workarounds do
+  not belong in integration code.

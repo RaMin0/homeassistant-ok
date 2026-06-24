@@ -7,11 +7,11 @@ entity registry, so adjust them after setup.
 
 Use the integration's energy price sensor entity in ApexCharts. The exact entity ID depends on your
 charger name. This example uses the normalized `prices` timeline attribute, a 34-hour rolling window,
-and a one-hour left offset. The tooltip value unit is inherited from the entity's
-`unit_of_measurement`.
+and a one-hour left offset. The card title is just an example; the tooltip value unit is inherited
+from the entity's `unit_of_measurement`.
 
 <p>
-  <img src="media/apexcharts-energy-price.png" alt="ApexCharts energy price card showing OK hourly electricity prices." width="760">
+  <img src="media/apexcharts-energy-price.png" alt="Example ApexCharts card showing OK hourly electricity prices." width="760">
 </p>
 
 ```yaml
@@ -22,6 +22,9 @@ apex_config:
   xaxis:
     tooltip:
       enabled: false
+header:
+  show: true
+  title: Power Price
 graph_span: 34h
 span:
   start: hour
@@ -43,7 +46,8 @@ series:
 Use the connector status sensor as the main entity and call OK actions from buttons or scripts. The
 service actions target Home Assistant entities, so dashboards do not need raw OK charger IDs. The
 restart button is disabled by default in the entity registry; enable it first if you want it on a
-dashboard.
+dashboard. For a single-connector charger, the status entity is usually named like
+`sensor.charger_status`; for multi-connector chargers, use the connector-specific status entity.
 
 <p>
   <img src="media/compact-charger-controls.png" alt="Compact Home Assistant charger card with start, stop, schedule, and restart controls." width="760">
@@ -51,7 +55,7 @@ dashboard.
 
 ```yaml
 type: entity
-entity: sensor.charger_connector_status
+entity: sensor.charger_status
 name: Charger
 footer:
   type: buttons
@@ -111,11 +115,13 @@ The integration does not create scripts automatically and does not modify `scrip
 
 ### Equivalent Script Action
 
+This example uses the same local schedule window shown in the screenshot above.
+
 ```yaml
 sequence:
   - action: ok.schedule_charging
     data:
-      entity_id: sensor.charger_connector_status
-      scheduled_start: "2026-06-17T23:00:00"
-      scheduled_end: "2026-06-18T06:00:00"
+      entity_id: sensor.charger_status
+      scheduled_start: "2026-06-25T11:00:00"
+      scheduled_end: "2026-06-25T19:00:00"
 ```

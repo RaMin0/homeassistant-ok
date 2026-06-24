@@ -74,9 +74,10 @@ If updates look delayed:
 
 ## Schedule, Stop, Update, Or Cancel Fails
 
-Creating a schedule targets the selected connector and needs a valid future schedule window.
-Updating, stopping, canceling, and editing the schedule datetime entities require OK to report an
-active charging session or schedule for that connector.
+Creating a schedule targets the selected connector and needs a valid schedule window. The integration
+validates that scheduled end is after scheduled start; in normal use, choose a future window because
+OK may reject past schedules. Updating, stopping, canceling, and editing the schedule datetime
+entities require OK to report an active charging session or schedule for that connector.
 
 - Select the OK connector status sensor for the correct connector.
 - Confirm the OK app shows an active charging session or schedule.

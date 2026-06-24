@@ -92,7 +92,10 @@ appropriate.
 Services/actions target OK entities, not raw charger or connector IDs. The selected entity must
 belong to the OK integration and expose `charger_id` and `connector_id` attributes.
 
-Buttons call the same OK client operations and then request an operational or station refresh.
+Control buttons call the same OK client operations as services and then request an operational
+refresh. The auto start switch requests a charger metadata refresh. The force refresh button bypasses
+freshness windows and requests a full coordinator refresh, including HTTP snapshots for
+realtime-backed status.
 
 ## Translations And Icons
 

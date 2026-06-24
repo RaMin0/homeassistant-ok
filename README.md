@@ -35,7 +35,7 @@
 | ⚡ Charger status | Connector and charging-session status with Firestore realtime updates when available and polling fallback. |
 | 🎛️ Controls | Start, stop, schedule, update schedule, cancel schedule, restart charger, and set auto start from Home Assistant. |
 | 🔋 Session data | Current connector session power/energy, schedule timing, and optional last-session receipt data. |
-| 💰 Energy prices | OK station prices with a normalized `prices` timeline for charts and `energidataservice`-style compatibility attributes. |
+| 💰 Energy prices | OK energy price data with a normalized `prices` timeline for charts and `energidataservice`-style compatibility attributes. |
 | 🧰 Maintenance | Force refresh troubleshooting control and account/charger diagnostic refresh timestamps. |
 | 🔒 Privacy | Diagnostics redact OK account, app, device, and legacy token identifiers. No custom telemetry is added. |
 
@@ -76,18 +76,15 @@ Assistant quality-scale certification. Remaining Core/Platinum-readiness tradeof
   this integration connects to.
 - This integration uses OK app APIs that are not a public Home Assistant API contract. OK may
   change, rotate, rate-limit, restrict, or block API behavior without notice.
-- Realtime status depends on OK Firestore documents and watcher support. If Firestore runtime
-  support is missing or misconfigured, Home Assistant creates a non-fixable repair issue and the
-  integration continues with polling. Transient watcher failures retry with bounded backoff.
+- Realtime status depends on OK Firestore documents and watcher support. If realtime updates cannot
+  start, the integration creates a non-fixable repair issue and continues with polling.
 - Polling uses internal freshness windows and endpoint backoff to reduce OK API traffic. Force
-  refresh bypasses those windows, requests HTTP snapshots for realtime-backed status, and can
-  increase OK API traffic. Do not put force refresh in recurring automations or frequently pressed
-  dashboard controls.
+  refresh bypasses those windows and should be used only as a troubleshooting control.
 - The OK API client is intentionally bundled inside `custom_components/ok/api` for now so HACS and
   manual installs ship as one project.
-- Local brand assets are included in the repository and can be served by Home Assistant versions
-  that support local custom-integration brand files. On older Home Assistant versions, frontend
-  branding may still require the OK assets in the Home Assistant brands repository.
+- Local brand assets are included in the repository. Home Assistant versions that support local
+  custom-integration brand files can serve them directly; older versions may still need OK assets in
+  the Home Assistant brands repository for frontend branding.
 
 ## 🚀 Installation
 
