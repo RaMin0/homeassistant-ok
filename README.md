@@ -8,18 +8,10 @@
   </p>
 
   <p>
-    <a href="https://github.com/RaMin0/homeassistant-ok/releases">
-      <img alt="GitHub release" src="https://img.shields.io/github/v/release/RaMin0/homeassistant-ok?style=for-the-badge">
-    </a>
-    <a href="https://github.com/RaMin0/homeassistant-ok/actions/workflows/validate.yml">
-      <img alt="Validation status" src="https://img.shields.io/github/actions/workflow/status/RaMin0/homeassistant-ok/validate.yml?branch=main&style=for-the-badge&label=validate">
-    </a>
-    <a href="https://hacs.xyz">
-      <img alt="HACS custom repository" src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge&logo=homeassistant&logoColor=white">
-    </a>
-    <a href="https://github.com/RaMin0/homeassistant-ok/blob/main/LICENSE">
-      <img alt="License" src="https://img.shields.io/github/license/RaMin0/homeassistant-ok?style=for-the-badge">
-    </a>
+    <a href="https://github.com/RaMin0/homeassistant-ok/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/RaMin0/homeassistant-ok?style=for-the-badge"></a>
+    <a href="https://github.com/RaMin0/homeassistant-ok/actions/workflows/validate.yml"><img alt="Validation status" src="https://img.shields.io/github/actions/workflow/status/RaMin0/homeassistant-ok/validate.yml?branch=main&style=for-the-badge&label=validate"></a>
+    <a href="https://hacs.xyz"><img alt="HACS custom repository" src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge&logo=homeassistant&logoColor=white"></a>
+    <a href="https://github.com/RaMin0/homeassistant-ok/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/RaMin0/homeassistant-ok?style=for-the-badge"></a>
   </p>
 
   <p>
@@ -27,12 +19,12 @@
   </p>
 
   <p>
-    <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=RaMin0&repository=homeassistant-ok&category=integration">
-      <img alt="Open this repository in HACS" src="https://my.home-assistant.io/badges/hacs_repository.svg">
-    </a>
-    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FRaMin0%2Fhomeassistant-ok%2Fmain%2Fblueprints%2Fscript%2Fok%2Fschedule_charging.yaml">
-      <img alt="Import the schedule charging blueprint" src="https://my.home-assistant.io/badges/blueprint_import.svg">
-    </a>
+    <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=RaMin0&repository=homeassistant-ok&category=integration"><img alt="Open this repository in HACS" src="https://my.home-assistant.io/badges/hacs_repository.svg"></a>
+    <a href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2FRaMin0%2Fhomeassistant-ok%2Fmain%2Fblueprints%2Fscript%2Fok%2Fschedule_charging.yaml"><img alt="Import the schedule charging blueprint" src="https://my.home-assistant.io/badges/blueprint_import.svg"></a>
+  </p>
+
+  <p>
+    <a href="README.md">English</a> | <a href="README.da.md">Dansk</a>
   </p>
 </div>
 
