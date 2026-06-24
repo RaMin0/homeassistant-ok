@@ -34,9 +34,9 @@ Keep:
 
 Do not introduce assumptions that only work for Home Assistant Core integrations.
 
-The HACS validation workflow intentionally skips while the repository is private. HACS only
-supports public GitHub repositories, so HACS validation must be re-run after the repository is made
-public.
+The HACS validation job is guarded for public repositories because HACS validation requires a public
+GitHub repository. If the repository is ever made private temporarily, HACS validation will skip and
+must be re-run after returning to public visibility.
 
 ## Version Synchronization
 
@@ -64,11 +64,14 @@ from HACS must include a matching `ok.zip` asset.
 
 ## Temporary Workarounds
 
-Do not add temporary cleanup code to integration setup, unload, coordinator refresh, or platform
-setup. Developer-instance cleanup should be run separately and then removed.
+Do not add one-off cleanup code to integration setup, unload, coordinator refresh, or platform setup
+for a single developer instance. Developer-instance cleanup should be run separately and then
+removed.
 
 Acceptable permanent cleanup behavior includes normal Home Assistant registry hygiene, such as
-removing stale charger devices only after repeated complete charger lists show that they are gone.
+removing stale charger devices only after repeated complete charger lists show that they are gone, or
+removing entity registry entries for entities that the integration no longer creates. Permanent
+cleanup behavior must be scoped, documented, and covered by tests.
 
 ## Entity And Device Stability
 

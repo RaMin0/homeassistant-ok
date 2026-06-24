@@ -53,8 +53,9 @@ Before editing a platform file, also inspect its tests:
 - Do not commit Home Assistant runtime state from `docker/ha/config`.
 - Do not commit `.env`, `.env.*`, `.envrc`, `secrets.yaml`, logs, databases, tokens, keys,
   unsanitized captures, or generated Python caches.
-- Do not add temporary cleanup/workaround code to the integration. If one-off cleanup is needed
-  for a developer instance, run it separately and remove it.
+- Do not add one-off cleanup/workaround code for a single developer instance. If one-off cleanup is
+  needed, run it separately and remove it. Permanent registry hygiene is allowed only when it is
+  scoped, documented, and covered by tests.
 - Keep OK uppercase in user-visible text.
 - Keep English and Danish translations in sync for user-visible strings, entity names,
   attributes, services, exceptions, config flow text, and repairs.

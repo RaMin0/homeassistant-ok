@@ -23,8 +23,9 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 - Enable Issues.
 - Enable squash merges and use the PR title as the squash commit message.
 - Disable merge commits for `main`.
-- The HACS validation job intentionally skips while the repository is private because HACS only
-  supports public GitHub repositories. Re-run `Validate` after making the repository public.
+- The HACS validation job is guarded for public repositories because HACS validation requires a
+  public GitHub repository. If the repository is made private temporarily, re-run `Validate` after it
+  is public again.
 - Protect `main` and require:
   - `HACS`
   - `Hassfest`
@@ -32,12 +33,12 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   - `Python / HA stable`
   - `Bundled API client / Python 3.13`
   - `Bundled API client / Python 3.14`
-  - `Conventional Commits`
+  - `Conventional Commit`
 - The release workflow uses only the built-in GitHub Actions token. If branch protection blocks
   that token from pushing version/changelog release commits, prefer a PR-based release flow or a
   dedicated GitHub App. Do not use a personal access token copied from a maintainer account.
-- Automated release jobs intentionally skip while the repository is private. Keep the repository
-  public when creating releases.
+- Automated release jobs are guarded for public repositories. Keep the repository public when
+  creating releases.
 - Add repository topics:
   - `home-assistant`
   - `hacs`
@@ -74,9 +75,10 @@ must include an `ok.zip` asset built from the same released source.
 7. The workflow checks out the released commit, builds `ok.zip` from `custom_components/ok`, and
    uploads that asset to the GitHub Release for HACS.
 
-Manual GitHub releases are not currently automated. If a manual release is ever needed, build and
-upload `ok.zip` from the same commit as the tag, and keep all version files and `CHANGELOG.md`
-aligned before publishing it. Prefer automated releases for normal changes.
+Out-of-band GitHub releases created directly in the GitHub UI are not automated. If one is ever
+needed, build and upload `ok.zip` from the same commit as the tag, and keep all version files and
+`CHANGELOG.md` aligned before publishing it. Prefer the semantic-release workflow for normal
+changes, including manual `workflow_dispatch` runs from `main`.
 
 No PyPI publishing is configured while the OK API client remains bundled inside the Home Assistant
 custom component.
