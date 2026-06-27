@@ -385,6 +385,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             )
             if receipt is None:
                 continue
+            receipt = _normalize_quick_receipt(receipt)
             receipts = _merge_receipt(receipts, receipt)
             self._quick_receipt_tokens.add(charging_token)
             station_id = receipt.get("chargingStationId") or charging.get("csIdentifier")
@@ -1316,6 +1317,27 @@ def _receipt_identity(receipt: ChargingReceipt) -> tuple[str, str, str] | None:
     ):
         return None
     return (station_id, started_at, ended_at)
+
+
+def _normalize_quick_receipt(receipt: ChargingReceipt) -> ChargingReceipt:
+    """Convert quickReceipt's Wh energy field to the kWh used by full receipts."""
+    energy_wh = _number_value(receipt.get("kWh"))
+    if energy_wh is None:
+        return receipt
+    return {**receipt, "kWh": round(energy_wh / 1000, 3)}
+
+
+def _number_value(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _status_changed(

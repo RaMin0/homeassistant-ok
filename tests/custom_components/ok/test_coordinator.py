@@ -157,7 +157,7 @@ class FakeOkClient:
         assert charging_token == "charging-token-001"
         return {
             "chargingStationId": "OK-CHARGER-001",
-            "kWh": 11.3,
+            "kWh": 11300,
             "chargingStart": "2025-06-05T10:00:00+00:00",
             "chargingEnd": "2025-06-05T12:00:00+00:00",
             "totalPriceInOere": 1900,
@@ -931,7 +931,10 @@ async def _test_coordinator_fetches_quick_receipt_for_known_finished_session(
 
         assert client.receipts_calls == 1
         assert client.quick_receipt_calls == ["charging-token-001"]
-        assert coordinator.last_receipt_for("OK-CHARGER-001")["totalPriceInOere"] == 1900
+        receipt = coordinator.last_receipt_for("OK-CHARGER-001")
+        assert receipt is not None
+        assert receipt["kWh"] == 11.3
+        assert receipt["totalPriceInOere"] == 1900
 
         await coordinator.async_request_operational_refresh()
 
