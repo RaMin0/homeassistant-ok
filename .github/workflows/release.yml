@@ -35,9 +35,7 @@ jobs:
       }}
     runs-on: ubuntu-latest
     permissions:
-      actions: write
       contents: write
-      pull-requests: write
     env:
       COMPONENT_PATH: custom_components/ok
       RELEASE_ASSET_NAME: ok.zip
@@ -70,181 +68,41 @@ jobs:
             exit 0
           fi
           echo "stale=false" >> "$GITHUB_OUTPUT"
-          echo "commit_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare or publish semantic release
+      - name: Semantic version release
         id: release
         if: ${{ github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_SHA: ${{ steps.validated_commit.outputs.commit_sha || github.sha }}
+        uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10.5.3
+        with:
+          build: "false"
+          github_token: ${{ github.token }}
+          git_committer_name: github-actions[bot]
+          git_committer_email: 41898282+github-actions[bot]@users.noreply.github.com
+          changelog: "true"
+          push: "true"
+          vcs_release: "true"
+
+      - name: Stop when validation run is superseded
+        if: ${{ github.event_name == 'workflow_run' && steps.validated_commit.outputs.stale == 'true' }}
+        run: echo "No release needed because a newer main commit has already been validated."
+
+      - name: Stop when no release is needed
+        if: >-
+          ${{
+            (github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true') &&
+            steps.release.outputs.released != 'true'
+          }}
+        run: echo "No release needed for this commit."
+
+      - name: Check out released commit
+        if: ${{ steps.release.outputs.released == 'true' }}
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install "python-semantic-release==10.5.3"
+          git fetch origin main --depth=1
+          git checkout --force "${{ steps.release.outputs.commit_sha }}"
 
-          version="$(
-            semantic-release version --print \
-              | awk '/^[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$/ { print; exit }'
-          )"
-          if [ -z "$version" ]; then
-            {
-              echo "released=false"
-              echo "release_pr=false"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          tag="$(
-            semantic-release version --print-tag \
-              | awk '/^v?[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$/ { print; exit }'
-          )"
-          if [ -z "$tag" ]; then
-            echo "Unable to determine release tag."
-            exit 1
-          fi
-
-          last_released="$(
-            semantic-release version --print-last-released \
-              | awk '/^[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$/ { print; exit }'
-          )"
-          if [ "$version" = "$last_released" ]; then
-            {
-              echo "released=false"
-              echo "release_pr=false"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          metadata_state="$(
-            python3 - <<'PY' "$version" "$tag"
-          from __future__ import annotations
-
-          import json
-          import re
-          import sys
-          import tomllib
-          from pathlib import Path
-
-          expected_version = sys.argv[1]
-          expected_tag = sys.argv[2]
-
-          pyproject_version = tomllib.loads(Path("pyproject.toml").read_text())["project"][
-              "version"
-          ]
-          manifest_version = json.loads(
-              Path("custom_components/ok/manifest.json").read_text()
-          )["version"]
-          api_match = re.search(
-              r'__version__ = "([^"]+)"',
-              Path("custom_components/ok/api/_version.py").read_text(),
-          )
-          api_version = api_match.group(1) if api_match else ""
-          changelog_lines = Path("CHANGELOG.md").read_text().splitlines()
-          changelog_has_tag = any(
-              line == f"## {expected_tag}" or line.startswith(f"## {expected_tag} ")
-              for line in changelog_lines
-          )
-
-          values = {
-              "pyproject.toml": pyproject_version,
-              "custom_components/ok/manifest.json": manifest_version,
-              "custom_components/ok/api/_version.py": api_version,
-          }
-          mismatches = [
-              f"{path}={actual}"
-              for path, actual in values.items()
-              if actual != expected_version
-          ]
-          if not changelog_has_tag:
-              mismatches.append(f"CHANGELOG.md missing {expected_tag}")
-
-          if mismatches:
-              print("out_of_sync")
-              print("\\n".join(mismatches), file=sys.stderr)
-          else:
-              print("synced")
-          PY
-          )"
-
-          if [ "$metadata_state" != "synced" ]; then
-            semantic-release version \
-              --no-commit \
-              --no-tag \
-              --no-push \
-              --no-vcs-release \
-              --changelog \
-              --skip-build
-
-            release_branch="release/${tag}"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git checkout -B "$release_branch"
-            git add pyproject.toml custom_components/ok/manifest.json custom_components/ok/api/_version.py CHANGELOG.md
-            if git diff --cached --quiet; then
-              echo "Release metadata was out of sync, but semantic-release produced no changes."
-              exit 1
-            fi
-            git commit -m "chore(release): ${tag}"
-            git push --force-with-lease origin "$release_branch"
-
-            pr_body="${RUNNER_TEMP}/release-pr.md"
-            cat > "$pr_body" <<EOF
-          Prepare ${tag} release metadata.
-
-          This PR was generated after the validated main branch needed a semantic release.
-          It keeps source-controlled version metadata aligned before the GitHub Release and HACS zip are published.
-          EOF
-
-            pr_number="$(
-              gh pr list \
-                --repo "$GITHUB_REPOSITORY" \
-                --head "$release_branch" \
-                --state open \
-                --json number \
-                --jq '.[0].number // ""'
-            )"
-            if [ -n "$pr_number" ]; then
-              gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$pr_body"
-              pr_url="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
-            else
-              pr_url="$(
-                gh pr create \
-                  --repo "$GITHUB_REPOSITORY" \
-                  --base main \
-                  --head "$release_branch" \
-                  --title "chore(release): ${tag}" \
-                  --body-file "$pr_body"
-              )"
-            fi
-
-            gh workflow run validate.yml --repo "$GITHUB_REPOSITORY" --ref "$release_branch"
-            gh workflow run conventional-commits.yml \
-              --repo "$GITHUB_REPOSITORY" \
-              --ref "$release_branch" \
-              -f title="chore(release): ${tag}"
-
-            {
-              echo "released=false"
-              echo "release_pr=true"
-              echo "version=$version"
-              echo "tag=$tag"
-              echo "pr_url=$pr_url"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          notes_file="${RUNNER_TEMP}/release-notes.md"
-          awk -v tag="$tag" '
-            $0 ~ "^## " tag "([ (]|$)" { capture = 1; print; next }
-            capture && /^## / { exit }
-            capture { print }
-          ' CHANGELOG.md > "$notes_file"
-          if [ ! -s "$notes_file" ]; then
-            printf "Release %s\n" "$tag" > "$notes_file"
-          fi
-
-          asset_path="${RUNNER_TEMP}/${RELEASE_ASSET_NAME}"
-          rm -f "$asset_path"
+      - name: Create HACS release asset
+        if: ${{ steps.release.outputs.released == 'true' }}
+        run: |
           python3 - <<'PY'
           from __future__ import annotations
 
@@ -254,6 +112,7 @@ jobs:
 
           component_path = Path(os.environ["COMPONENT_PATH"])
           asset_path = Path(os.environ["RUNNER_TEMP"]) / os.environ["RELEASE_ASSET_NAME"]
+          asset_path.unlink(missing_ok=True)
           with zipfile.ZipFile(asset_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
               for path in sorted(component_path.rglob("*")):
                   if not path.is_file():
@@ -266,48 +125,16 @@ jobs:
                   raise RuntimeError(f"Created corrupt zip member: {bad_file}")
           PY
 
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$tag" "$asset_path" --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create "$tag" "$asset_path" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$RELEASE_SHA" \
-              --title "$tag" \
-              --notes-file "$notes_file"
-          fi
-
-          link="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
-          {
-            echo "released=true"
-            echo "release_pr=false"
-            echo "version=$version"
-            echo "tag=$tag"
-            echo "commit_sha=$RELEASE_SHA"
-            echo "link=$link"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Stop when validation run is superseded
-        if: ${{ github.event_name == 'workflow_run' && steps.validated_commit.outputs.stale == 'true' }}
-        run: echo "No release needed because a newer main commit has already been validated."
-
-      - name: Stop when no release is needed
-        if: >-
-          ${{
-            (github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true') &&
-            steps.release.outputs.released != 'true' &&
-            steps.release.outputs.release_pr != 'true'
-          }}
-        run: echo "No release needed for this commit."
-
-      - name: Summarize release PR
-        if: ${{ steps.release.outputs.release_pr == 'true' }}
+      - name: Upload HACS release asset
+        if: ${{ steps.release.outputs.released == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          {
-            echo "Prepared release metadata PR for ${{ steps.release.outputs.tag }}"
-            echo
-            echo "- Version: ${{ steps.release.outputs.version }}"
-            echo "- Pull request: ${{ steps.release.outputs.pr_url }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          gh release upload \
+            "${{ steps.release.outputs.tag }}" \
+            "${RUNNER_TEMP}/${RELEASE_ASSET_NAME}" \
+            --repo "${{ github.repository }}" \
+            --clobber
 
       - name: Summarize release
         if: ${{ steps.release.outputs.released == 'true' }}
@@ -316,7 +143,7 @@ jobs:
             echo "Released ${{ steps.release.outputs.tag }}"
             echo
             echo "- Version: ${{ steps.release.outputs.version }}"
-            echo "- Changelog: GitHub release notes"
+            echo "- Changelog: CHANGELOG.md"
             echo "- HACS asset: ${RELEASE_ASSET_NAME}"
             echo "- Release URL: ${{ steps.release.outputs.link }}"
           } >> "$GITHUB_STEP_SUMMARY"

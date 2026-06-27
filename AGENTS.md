@@ -62,8 +62,8 @@ Before editing a platform file, also inspect its tests:
 - Keep HACS compatibility. Do not introduce Home Assistant Core-only packaging assumptions.
 - Keep release versions synchronized across `pyproject.toml`,
   `custom_components/ok/manifest.json`, `custom_components/ok/api/_version.py`, and
-  `CHANGELOG.md`. The release workflow must not publish a GitHub Release from uncommitted
-  version metadata.
+  `CHANGELOG.md`. The release workflow commits those metadata changes to `main` before tagging
+  and publishing a GitHub Release.
 
 ## Home Assistant Quality Bar
 
@@ -152,10 +152,9 @@ Use Conventional Commit PR titles and squash merges:
 
 Do not publish to PyPI while the OK client remains bundled.
 
-The release workflow uses the built-in GitHub Actions token. When a release is needed but
-`main` does not already contain the version/changelog bump, the workflow creates or updates a
-release PR such as `chore(release): v0.3.1`. It publishes the GitHub Release and `ok.zip` only
-after that metadata is merged to `main`.
+The release workflow uses the built-in GitHub Actions token. The repository ruleset exempts
+`github-actions[bot]` so semantic-release can push the release metadata commit, tag, GitHub
+Release, and `ok.zip` from the validated `main` workflow run without a maintainer PAT.
 
 ## When Unsure
 

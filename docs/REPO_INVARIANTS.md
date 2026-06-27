@@ -47,11 +47,11 @@ On `main`, the current release version is kept in:
 - `custom_components/ok/api/_version.py`
 - `CHANGELOG.md`
 
-The protected-branch release workflow does not push generated release commits directly to `main`.
-Instead, semantic-release calculates the next version from commits on `main`. If the committed
-version metadata does not match that version, the workflow creates or updates a release PR. Only
-after that PR is merged may the workflow tag the validated `main` commit, create the GitHub
-Release, and upload the HACS zip asset.
+The protected-branch release workflow uses the built-in GitHub Actions token. The repository
+ruleset exempts `github-actions[bot]` so semantic-release can push generated release commits
+directly to `main` after the validated workflow run. A release commit must update all release
+metadata files before the workflow tags that commit, creates the GitHub Release, and uploads the
+HACS zip asset.
 
 The release workflow creates `ok.zip` from `custom_components/ok` and uploads it to the GitHub
 Release. Do not include repository root files, Docker config, tests, docs, or local runtime state
