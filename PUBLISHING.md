@@ -29,6 +29,7 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 - Protect `main` and require:
   - `HACS`
   - `Hassfest`
+  - `Workflow Permissions`
   - `Python / HA 2025.12.5`
   - `Python / HA stable`
   - `Bundled API client / Python 3.13`
@@ -41,6 +42,8 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 - For this personal repository, configure the bypass as the `github-actions[bot]` user. GitHub may
   reject the built-in GitHub Actions app integration as a bypass actor unless that app is part of
   the ruleset owner/source.
+- Keep `Workflow Permissions` required. It verifies that `contents: write` is only granted to the
+  release workflow, limiting the blast radius of the `github-actions[bot]` ruleset exemption.
 - Automated release jobs are guarded for public repositories. Keep the repository public when
   creating releases.
 - Add repository topics:

@@ -11,6 +11,42 @@ permissions:
   contents: read
 
 jobs:
+  workflow-permissions:
+    name: Workflow Permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Restrict write-capable workflows
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          from pathlib import Path
+          import re
+          import sys
+
+          allowed = {Path(".github/workflows/release.yml")}
+          contents_write = re.compile(r"^\s*contents\s*:\s*['\"]?write['\"]?\s*$", re.I)
+          write_all = re.compile(r"^\s*permissions\s*:\s*['\"]?write-all['\"]?\s*$", re.I)
+          errors: list[str] = []
+
+          for path in sorted(Path(".github/workflows").glob("*.yml")) + sorted(
+              Path(".github/workflows").glob("*.yaml")
+          ):
+              for line_number, raw_line in enumerate(path.read_text().splitlines(), 1):
+                  line = raw_line.split("#", 1)[0]
+                  if write_all.fullmatch(line.strip()):
+                      errors.append(f"{path}:{line_number}: permissions: write-all is not allowed")
+                  if contents_write.fullmatch(line.strip()) and path not in allowed:
+                      errors.append(
+                          f"{path}:{line_number}: contents: write is only allowed in release.yml"
+                      )
+
+          if errors:
+              print("\n".join(errors), file=sys.stderr)
+              sys.exit(1)
+          PY
+
   hacs:
     name: HACS
     if: ${{ github.event.repository.private == false }}
