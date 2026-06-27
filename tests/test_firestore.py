@@ -13,6 +13,11 @@ from custom_components.ok.api import (
     parse_nanoseconds_timestamp,
 )
 from custom_components.ok.api._firestore import (
+    _AsyncFirestoreWatchState,
+    _create_default_firestore_client,
+    _enqueue_queued_event,
+    _run_blocking_in_thread,
+    _snapshot_to_event,
     charging_transaction_document_path,
     decode_firestore_document,
     decode_firestore_value,
@@ -65,6 +70,90 @@ def test_decode_firestore_value_handles_edge_shapes() -> None:
     assert decode_firestore_value({"unknownValue": "bad"}) == {}
     assert decode_firestore_document({"fields": []}).fields == {}
     assert charging_transaction_document_path("token") == "OK/Emsp/RemoteTransactions/token"
+
+
+def test_default_firestore_client_uses_anonymous_credentials(monkeypatch) -> None:
+    import custom_components.ok.api._firestore as firestore_module
+
+    class AnonymousCredentials:
+        pass
+
+    @dataclass
+    class Client:
+        project: str
+        credentials: object
+
+    class CredentialsModule:
+        pass
+
+    CredentialsModule.AnonymousCredentials = AnonymousCredentials
+
+    class FirestoreModule:
+        pass
+
+    FirestoreModule.Client = Client
+
+    def import_module(name: str) -> object:
+        return {
+            "google.auth.credentials": CredentialsModule,
+            "google.cloud.firestore": FirestoreModule,
+        }[name]
+
+    monkeypatch.setattr(firestore_module, "import_module", import_module)
+
+    client = _create_default_firestore_client(project_id="project-id", credentials=None)
+    assert isinstance(client, Client)
+    assert client.project == "project-id"
+    assert isinstance(client.credentials, AnonymousCredentials)
+
+    credentials = object()
+    client = _create_default_firestore_client(project_id="project-id", credentials=credentials)
+    assert isinstance(client, Client)
+    assert client.credentials is credentials
+
+
+def test_firestore_snapshot_handles_non_mapping_fields_and_plain_times() -> None:
+    @dataclass
+    class Reference:
+        path: str
+
+    class Snapshot:
+        exists = True
+        reference = Reference("OK/Emsp/RemoteTransactions/token")
+        create_time = "plain-time"
+        update_time = None
+
+        def to_dict(self) -> list[str]:
+            return ["not", "a", "mapping"]
+
+    event = _snapshot_to_event(Snapshot(), ["change"], "read-time")
+
+    assert event.exists is True
+    assert event.document is not None
+    assert event.document.fields == {}
+    assert event.document.create_time == "plain-time"
+    assert event.changes == ("change",)
+    assert event.read_time == "read-time"
+
+
+def test_async_firestore_queue_helpers_ignore_closed_state_and_wake_close() -> None:
+    watch_event = _snapshot_to_event(None, [], None)
+    queue: asyncio.Queue[object] = asyncio.Queue(maxsize=1)
+    state = _AsyncFirestoreWatchState(closed=True)
+
+    _enqueue_queued_event(queue, state, watch_event)
+    assert queue.empty()
+
+    _enqueue_queued_event(queue, state, watch_event, wake_closed=True)
+    assert queue.get_nowait() is watch_event
+
+    _enqueue_queued_event(queue, _AsyncFirestoreWatchState(), watch_event)
+    _enqueue_queued_event(queue, _AsyncFirestoreWatchState(), watch_event)
+    assert queue.qsize() == 1
+
+
+def test_run_blocking_in_thread_runs_callable() -> None:
+    assert asyncio.run(_run_blocking_in_thread(lambda: "ok")) == "ok"
 
 
 def test_realtime_watcher_uses_firestore_document_path_and_decodes_snapshot() -> None:

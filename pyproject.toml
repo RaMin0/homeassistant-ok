@@ -60,6 +60,11 @@ testpaths = ["tests"]
 markers = [
   "live: tests that call the real external API and are skipped by default",
 ]
+filterwarnings = [
+  'ignore:Inheritance class HomeAssistantApplication from web\.Application is discouraged:DeprecationWarning:homeassistant\.components\.http',
+  'ignore:Support for class-based `config` is deprecated.*:DeprecationWarning:litellm\.types\.llms\.anthropic',
+  "ignore:'return' in a 'finally' block:SyntaxWarning",
+]
 
 [tool.coverage.run]
 branch = true

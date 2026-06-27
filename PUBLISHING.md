@@ -32,6 +32,9 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   - `Workflow Permissions`
   - `Python / HA 2025.12.5`
   - `Python / HA stable`
+  - `Type Check / HA 2025.12.5`
+  - `Python Quality / Python 3.13`
+  - `Python Quality / Python 3.14`
   - `Bundled API client / Python 3.13`
   - `Bundled API client / Python 3.14`
   - `Conventional Commit`
