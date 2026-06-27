@@ -2,6 +2,53 @@
 
 <!-- version list -->
 
+## v0.3.1 (2026-06-27)
+
+### Bug Fixes
+
+- Normalize quick receipt energy units
+  ([`f08987a`](https://github.com/RaMin0/homeassistant-ok/commit/f08987a2f007b4eee354a7d1b67700a47b0945f9))
+
+### Chores
+
+- Keep private planning notes local
+  ([`85ae701`](https://github.com/RaMin0/homeassistant-ok/commit/85ae70198c4f9c30db46b309c0121588a1e47932))
+
+- **github**: Improve issue triage metadata
+  ([`9ecfe10`](https://github.com/RaMin0/homeassistant-ok/commit/9ecfe10d40163660c7fb1c82b5f804d100d595d5))
+
+### Continuous Integration
+
+- Release without protected branch pushes
+  ([`57a0ca9`](https://github.com/RaMin0/homeassistant-ok/commit/57a0ca9a112c5fc807cdc27c9d3f3384222fb511))
+
+- Remove release token fallback
+  ([`dd9e28c`](https://github.com/RaMin0/homeassistant-ok/commit/dd9e28c3049b01e7fac23a299c2057068a7702d8))
+
+- Skip stale release workflow runs
+  ([`95f7095`](https://github.com/RaMin0/homeassistant-ok/commit/95f709522f48f9d617bf067eb4171a90fb2b0a4f))
+
+### Documentation
+
+- Add Danish README
+  ([`8936535`](https://github.com/RaMin0/homeassistant-ok/commit/89365350e6eec3666b0e03dfb676ca5d96634830))
+
+- Add usage screenshots and realtime notes
+  ([`f610cd7`](https://github.com/RaMin0/homeassistant-ok/commit/f610cd7a0eaa0099be4cb2754a21d5941a2df748))
+
+- Align maintainer release guidance
+  ([`7574070`](https://github.com/RaMin0/homeassistant-ok/commit/7574070c7428c024f3373873b72f60de8ea337c1))
+
+- Align publishing and repository guidance
+  ([`6d8b747`](https://github.com/RaMin0/homeassistant-ok/commit/6d8b7476831bcdac221b88df4b7792957d0d0d67))
+
+- Clarify public usage documentation
+  ([`5e07ed0`](https://github.com/RaMin0/homeassistant-ok/commit/5e07ed026e5b63b80671e49ca8ed2b1fd700bd88))
+
+- Update usage examples and behavior docs
+  ([`a323588`](https://github.com/RaMin0/homeassistant-ok/commit/a323588fbc3ea837d0a9895f9f6d12fb408bebe1))
+
+
 ## v0.3.0 (2026-06-21)
 
 ### Bug Fixes
