@@ -35,7 +35,9 @@ jobs:
       }}
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
+      pull-requests: write
     env:
       COMPONENT_PATH: custom_components/ok
       RELEASE_ASSET_NAME: ok.zip
@@ -70,7 +72,7 @@ jobs:
           echo "stale=false" >> "$GITHUB_OUTPUT"
           echo "commit_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Semantic version release
+      - name: Prepare or publish semantic release
         id: release
         if: ${{ github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true' }}
         env:
@@ -87,6 +89,7 @@ jobs:
           if [ -z "$version" ]; then
             {
               echo "released=false"
+              echo "release_pr=false"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -100,13 +103,135 @@ jobs:
             exit 1
           fi
 
-          semantic-release version \
-            --no-commit \
-            --no-tag \
-            --no-push \
-            --no-vcs-release \
-            --changelog \
-            --skip-build
+          last_released="$(
+            semantic-release version --print-last-released \
+              | awk '/^[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$/ { print; exit }'
+          )"
+          if [ "$version" = "$last_released" ]; then
+            {
+              echo "released=false"
+              echo "release_pr=false"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          metadata_state="$(
+            python3 - <<'PY' "$version" "$tag"
+          from __future__ import annotations
+
+          import json
+          import re
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          expected_version = sys.argv[1]
+          expected_tag = sys.argv[2]
+
+          pyproject_version = tomllib.loads(Path("pyproject.toml").read_text())["project"][
+              "version"
+          ]
+          manifest_version = json.loads(
+              Path("custom_components/ok/manifest.json").read_text()
+          )["version"]
+          api_match = re.search(
+              r'__version__ = "([^"]+)"',
+              Path("custom_components/ok/api/_version.py").read_text(),
+          )
+          api_version = api_match.group(1) if api_match else ""
+          changelog_lines = Path("CHANGELOG.md").read_text().splitlines()
+          changelog_has_tag = any(
+              line == f"## {expected_tag}" or line.startswith(f"## {expected_tag} ")
+              for line in changelog_lines
+          )
+
+          values = {
+              "pyproject.toml": pyproject_version,
+              "custom_components/ok/manifest.json": manifest_version,
+              "custom_components/ok/api/_version.py": api_version,
+          }
+          mismatches = [
+              f"{path}={actual}"
+              for path, actual in values.items()
+              if actual != expected_version
+          ]
+          if not changelog_has_tag:
+              mismatches.append(f"CHANGELOG.md missing {expected_tag}")
+
+          if mismatches:
+              print("out_of_sync")
+              print("\\n".join(mismatches), file=sys.stderr)
+          else:
+              print("synced")
+          PY
+          )"
+
+          if [ "$metadata_state" != "synced" ]; then
+            semantic-release version \
+              --no-commit \
+              --no-tag \
+              --no-push \
+              --no-vcs-release \
+              --changelog \
+              --skip-build
+
+            release_branch="release/${tag}"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git checkout -B "$release_branch"
+            git add pyproject.toml custom_components/ok/manifest.json custom_components/ok/api/_version.py CHANGELOG.md
+            if git diff --cached --quiet; then
+              echo "Release metadata was out of sync, but semantic-release produced no changes."
+              exit 1
+            fi
+            git commit -m "chore(release): ${tag}"
+            git push --force-with-lease origin "$release_branch"
+
+            pr_body="${RUNNER_TEMP}/release-pr.md"
+            cat > "$pr_body" <<EOF
+          Prepare ${tag} release metadata.
+
+          This PR was generated after the validated main branch needed a semantic release.
+          It keeps source-controlled version metadata aligned before the GitHub Release and HACS zip are published.
+          EOF
+
+            pr_number="$(
+              gh pr list \
+                --repo "$GITHUB_REPOSITORY" \
+                --head "$release_branch" \
+                --state open \
+                --json number \
+                --jq '.[0].number // ""'
+            )"
+            if [ -n "$pr_number" ]; then
+              gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$pr_body"
+              pr_url="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+            else
+              pr_url="$(
+                gh pr create \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --base main \
+                  --head "$release_branch" \
+                  --title "chore(release): ${tag}" \
+                  --body-file "$pr_body"
+              )"
+            fi
+
+            gh workflow run validate.yml --repo "$GITHUB_REPOSITORY" --ref "$release_branch"
+            gh workflow run conventional-commits.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref "$release_branch" \
+              -f title="chore(release): ${tag}"
+
+            {
+              echo "released=false"
+              echo "release_pr=true"
+              echo "version=$version"
+              echo "tag=$tag"
+              echo "pr_url=$pr_url"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           notes_file="${RUNNER_TEMP}/release-notes.md"
           awk -v tag="$tag" '
@@ -154,6 +279,7 @@ jobs:
           link="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
           {
             echo "released=true"
+            echo "release_pr=false"
             echo "version=$version"
             echo "tag=$tag"
             echo "commit_sha=$RELEASE_SHA"
@@ -168,9 +294,20 @@ jobs:
         if: >-
           ${{
             (github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true') &&
-            steps.release.outputs.released != 'true'
+            steps.release.outputs.released != 'true' &&
+            steps.release.outputs.release_pr != 'true'
           }}
         run: echo "No release needed for this commit."
+
+      - name: Summarize release PR
+        if: ${{ steps.release.outputs.release_pr == 'true' }}
+        run: |
+          {
+            echo "Prepared release metadata PR for ${{ steps.release.outputs.tag }}"
+            echo
+            echo "- Version: ${{ steps.release.outputs.version }}"
+            echo "- Pull request: ${{ steps.release.outputs.pr_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize release
         if: ${{ steps.release.outputs.released == 'true' }}

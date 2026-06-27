@@ -40,16 +40,18 @@ must be re-run after returning to public visibility.
 
 ## Versioning
 
-On `main`, the current development baseline version is kept in:
+On `main`, the current release version is kept in:
 
 - `pyproject.toml`
 - `custom_components/ok/manifest.json`
 - `custom_components/ok/api/_version.py`
+- `CHANGELOG.md`
 
-The protected-branch release workflow does not push generated release commits back to `main`.
-Instead, semantic-release calculates the next version from commits on `main`, stamps those version
-files in the release workspace, generates release notes from the temporary changelog, and publishes
-the HACS zip asset from that stamped workspace.
+The protected-branch release workflow does not push generated release commits directly to `main`.
+Instead, semantic-release calculates the next version from commits on `main`. If the committed
+version metadata does not match that version, the workflow creates or updates a release PR. Only
+after that PR is merged may the workflow tag the validated `main` commit, create the GitHub
+Release, and upload the HACS zip asset.
 
 The release workflow creates `ok.zip` from `custom_components/ok` and uploads it to the GitHub
 Release. Do not include repository root files, Docker config, tests, docs, or local runtime state

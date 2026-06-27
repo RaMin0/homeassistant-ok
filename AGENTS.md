@@ -60,10 +60,10 @@ Before editing a platform file, also inspect its tests:
 - Keep English and Danish translations in sync for user-visible strings, entity names,
   attributes, services, exceptions, config flow text, and repairs.
 - Keep HACS compatibility. Do not introduce Home Assistant Core-only packaging assumptions.
-- Keep local development versions synchronized across `pyproject.toml`,
-  `custom_components/ok/manifest.json`, and `custom_components/ok/api/_version.py`. The release
-  workflow stamps release versions and generates release notes in its temporary workspace without
-  pushing release commits back to protected `main`.
+- Keep release versions synchronized across `pyproject.toml`,
+  `custom_components/ok/manifest.json`, `custom_components/ok/api/_version.py`, and
+  `CHANGELOG.md`. The release workflow must not publish a GitHub Release from uncommitted
+  version metadata.
 
 ## Home Assistant Quality Bar
 
@@ -151,6 +151,11 @@ Use Conventional Commit PR titles and squash merges:
   do not release unless semantic-release rules change.
 
 Do not publish to PyPI while the OK client remains bundled.
+
+The release workflow uses the built-in GitHub Actions token. When a release is needed but
+`main` does not already contain the version/changelog bump, the workflow creates or updates a
+release PR such as `chore(release): v0.3.1`. It publishes the GitHub Release and `ok.zip` only
+after that metadata is merged to `main`.
 
 ## When Unsure
 
