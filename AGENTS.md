@@ -60,8 +60,10 @@ Before editing a platform file, also inspect its tests:
 - Keep English and Danish translations in sync for user-visible strings, entity names,
   attributes, services, exceptions, config flow text, and repairs.
 - Keep HACS compatibility. Do not introduce Home Assistant Core-only packaging assumptions.
-- Keep versions synchronized across `pyproject.toml`, `custom_components/ok/manifest.json`,
-  `custom_components/ok/api/_version.py`, and `CHANGELOG.md`.
+- Keep local development versions synchronized across `pyproject.toml`,
+  `custom_components/ok/manifest.json`, and `custom_components/ok/api/_version.py`. The release
+  workflow stamps release versions and generates release notes in its temporary workspace without
+  pushing release commits back to protected `main`.
 
 ## Home Assistant Quality Bar
 

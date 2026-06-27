@@ -68,19 +68,97 @@ jobs:
             exit 0
           fi
           echo "stale=false" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Semantic version release
         id: release
         if: ${{ github.event_name != 'workflow_run' || steps.validated_commit.outputs.stale != 'true' }}
-        uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10.5.3
-        with:
-          build: "false"
-          github_token: ${{ github.token }}
-          git_committer_name: github-actions[bot]
-          git_committer_email: 41898282+github-actions[bot]@users.noreply.github.com
-          changelog: "true"
-          push: "true"
-          vcs_release: "true"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.validated_commit.outputs.commit_sha || github.sha }}
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "python-semantic-release==10.5.3"
+
+          version="$(
+            semantic-release version --print \
+              | awk '/^[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$/ { print; exit }'
+          )"
+          if [ -z "$version" ]; then
+            {
+              echo "released=false"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          tag="$(
+            semantic-release version --print-tag \
+              | awk '/^v?[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$/ { print; exit }'
+          )"
+          if [ -z "$tag" ]; then
+            echo "Unable to determine release tag."
+            exit 1
+          fi
+
+          semantic-release version \
+            --no-commit \
+            --no-tag \
+            --no-push \
+            --no-vcs-release \
+            --changelog \
+            --skip-build
+
+          notes_file="${RUNNER_TEMP}/release-notes.md"
+          awk -v tag="$tag" '
+            $0 ~ "^## " tag "([ (]|$)" { capture = 1; print; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > "$notes_file"
+          if [ ! -s "$notes_file" ]; then
+            printf "Release %s\n" "$tag" > "$notes_file"
+          fi
+
+          asset_path="${RUNNER_TEMP}/${RELEASE_ASSET_NAME}"
+          rm -f "$asset_path"
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import os
+          from pathlib import Path
+          import zipfile
+
+          component_path = Path(os.environ["COMPONENT_PATH"])
+          asset_path = Path(os.environ["RUNNER_TEMP"]) / os.environ["RELEASE_ASSET_NAME"]
+          with zipfile.ZipFile(asset_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(component_path.rglob("*")):
+                  if not path.is_file():
+                      continue
+                  if "__pycache__" in path.parts or path.suffix == ".pyc":
+                      continue
+                  archive.write(path, path.relative_to(component_path))
+          with zipfile.ZipFile(asset_path) as archive:
+              if bad_file := archive.testzip():
+                  raise RuntimeError(f"Created corrupt zip member: {bad_file}")
+          PY
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$asset_path" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$asset_path" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_SHA" \
+              --title "$tag" \
+              --notes-file "$notes_file"
+          fi
+
+          link="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+          {
+            echo "released=true"
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "commit_sha=$RELEASE_SHA"
+            echo "link=$link"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Stop when validation run is superseded
         if: ${{ github.event_name == 'workflow_run' && steps.validated_commit.outputs.stale == 'true' }}
@@ -94,48 +172,6 @@ jobs:
           }}
         run: echo "No release needed for this commit."
 
-      - name: Check out released commit
-        if: ${{ steps.release.outputs.released == 'true' }}
-        run: |
-          git fetch origin main --depth=1
-          git checkout --force "${{ steps.release.outputs.commit_sha }}"
-
-      - name: Create HACS release asset
-        if: ${{ steps.release.outputs.released == 'true' }}
-        run: |
-          python3 - <<'PY'
-          from __future__ import annotations
-
-          import os
-          from pathlib import Path
-          import zipfile
-
-          component_path = Path(os.environ["COMPONENT_PATH"])
-          asset_path = Path(os.environ["RUNNER_TEMP"]) / os.environ["RELEASE_ASSET_NAME"]
-          asset_path.unlink(missing_ok=True)
-          with zipfile.ZipFile(asset_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-              for path in sorted(component_path.rglob("*")):
-                  if not path.is_file():
-                      continue
-                  if "__pycache__" in path.parts or path.suffix == ".pyc":
-                      continue
-                  archive.write(path, path.relative_to(component_path))
-          with zipfile.ZipFile(asset_path) as archive:
-              if bad_file := archive.testzip():
-                  raise RuntimeError(f"Created corrupt zip member: {bad_file}")
-          PY
-
-      - name: Upload HACS release asset
-        if: ${{ steps.release.outputs.released == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload \
-            "${{ steps.release.outputs.tag }}" \
-            "${RUNNER_TEMP}/${RELEASE_ASSET_NAME}" \
-            --repo "${{ github.repository }}" \
-            --clobber
-
       - name: Summarize release
         if: ${{ steps.release.outputs.released == 'true' }}
         run: |
@@ -143,7 +179,7 @@ jobs:
             echo "Released ${{ steps.release.outputs.tag }}"
             echo
             echo "- Version: ${{ steps.release.outputs.version }}"
-            echo "- Changelog: CHANGELOG.md"
+            echo "- Changelog: GitHub release notes"
             echo "- HACS asset: ${RELEASE_ASSET_NAME}"
             echo "- Release URL: ${{ steps.release.outputs.link }}"
           } >> "$GITHUB_STEP_SUMMARY"

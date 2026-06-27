@@ -38,22 +38,23 @@ The HACS validation job is guarded for public repositories because HACS validati
 GitHub repository. If the repository is ever made private temporarily, HACS validation will skip and
 must be re-run after returning to public visibility.
 
-## Version Synchronization
+## Versioning
 
-The version must stay synchronized across:
+On `main`, the current development baseline version is kept in:
 
 - `pyproject.toml`
 - `custom_components/ok/manifest.json`
 - `custom_components/ok/api/_version.py`
-- `CHANGELOG.md`
 
-Semantic release is configured to update the first three and the changelog from the established
-public release baseline.
+The protected-branch release workflow does not push generated release commits back to `main`.
+Instead, semantic-release calculates the next version from commits on `main`, stamps those version
+files in the release workspace, generates release notes from the temporary changelog, and publishes
+the HACS zip asset from that stamped workspace.
 
 The release workflow creates `ok.zip` from `custom_components/ok` and uploads it to the GitHub
 Release. Do not include repository root files, Docker config, tests, docs, or local runtime state
 in that archive. HACS `zip_release` metadata is enabled, so every public release users can install
-from HACS must include a matching `ok.zip` asset.
+from HACS must include an `ok.zip` asset whose manifest version matches the release tag.
 
 ## Tests And API Calls
 

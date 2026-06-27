@@ -141,13 +141,13 @@ find . \
   \) -print
 ```
 
-Also check that release metadata is synchronized and inspect remaining version literals for stale
-references:
+Also check that local development version metadata is synchronized and inspect remaining version
+literals for stale references:
 
 ```bash
 version="$(awk -F'"' '/^version = / {print $2; exit}' pyproject.toml)"
-rg -n "version = \"$version\"|\"version\": \"$version\"|__version__ = \"$version\"|## v$version" \
-  pyproject.toml custom_components/ok/manifest.json custom_components/ok/api/_version.py CHANGELOG.md
+rg -n "version = \"$version\"|\"version\": \"$version\"|__version__ = \"$version\"" \
+  pyproject.toml custom_components/ok/manifest.json custom_components/ok/api/_version.py
 rg -n "v?[0-9]+\\.[0-9]+\\.[0-9]+" \
   README.md README.da.md PUBLISHING.md CONTRIBUTING.md ROADMAP.md SECURITY.md AGENTS.md \
   docs .github custom_components/ok/manifest.json custom_components/ok/api/_version.py pyproject.toml

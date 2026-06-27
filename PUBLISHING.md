@@ -34,9 +34,10 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   - `Bundled API client / Python 3.13`
   - `Bundled API client / Python 3.14`
   - `Conventional Commit`
-- The release workflow uses only the built-in GitHub Actions token. If branch protection blocks
-  that token from pushing version/changelog release commits, prefer a PR-based release flow or a
-  dedicated GitHub App. Do not use a personal access token copied from a maintainer account.
+- The release workflow uses only the built-in GitHub Actions token. It must not require a
+  maintainer personal access token or long-lived release token.
+- Keep `main` protected. The workflow creates tags, GitHub releases, release notes, and HACS assets
+  without pushing release commits back to `main`.
 - Automated release jobs are guarded for public repositories. Keep the repository public when
   creating releases.
 - Add repository topics:
@@ -57,7 +58,7 @@ Release includes `ok.zip` for HACS.
 
 Do not publish to PyPI while the OK API client remains bundled. The repository uses HACS
 release-asset installation through `zip_release`, so every public release users can select in HACS
-must include an `ok.zip` asset built from the same released source.
+must include an `ok.zip` asset stamped with the released version.
 
 ### Automated Releases
 
@@ -65,20 +66,19 @@ must include an `ok.zip` asset built from the same released source.
 2. The `Validate` workflow runs on `main`.
 3. After `Validate` succeeds, the `Release` workflow runs.
 4. Python Semantic Release calculates the next version from commits on `main`.
-5. If a release is needed, it updates:
+5. If a release is needed, it updates the release workspace copy of:
    - `pyproject.toml`
    - `custom_components/ok/manifest.json`
    - `custom_components/ok/api/_version.py`
    - `CHANGELOG.md`
-6. The release workflow pushes a release commit, creates a tag such as `v0.3.0`, and creates a
-   GitHub Release.
-7. The workflow checks out the released commit, builds `ok.zip` from `custom_components/ok`, and
-   uploads that asset to the GitHub Release for HACS.
+6. The release workflow creates a tag such as `v0.3.1` on the validated `main` commit and creates
+   a GitHub Release with generated release notes.
+7. The workflow builds `ok.zip` from the stamped release workspace and uploads that asset to the
+   GitHub Release for HACS.
 
 Out-of-band GitHub releases created directly in the GitHub UI are not automated. If one is ever
-needed, build and upload `ok.zip` from the same commit as the tag, and keep all version files and
-`CHANGELOG.md` aligned before publishing it. Prefer the semantic-release workflow for normal
-changes, including manual `workflow_dispatch` runs from `main`.
+needed, build and upload `ok.zip` with the same version as the tag. Prefer the semantic-release
+workflow for normal changes, including manual `workflow_dispatch` runs from `main`.
 
 No PyPI publishing is configured while the OK API client remains bundled inside the Home Assistant
 custom component.
