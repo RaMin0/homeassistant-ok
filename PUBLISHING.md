@@ -39,17 +39,22 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   - `Bundled API client / Python 3.13`
   - `Bundled API client / Python 3.14`
   - `Conventional Commit`
-- The release workflow uses only the built-in GitHub Actions token. It must not require a
-  maintainer personal access token or long-lived release token.
+- The release workflow uses a fine-grained personal access token stored as the repository secret
+  `RELEASE_TOKEN`. The token must:
+  - Belong to `RaMin0`, because that user is the ruleset bypass actor.
+  - Be scoped only to `RaMin0/homeassistant-ok`.
+  - Grant only `Contents: Read and write`; `Metadata: Read-only` is automatic.
+  - Use the maximum acceptable expiration for the account. For personal repositories, GitHub allows
+    no expiration for fine-grained tokens unless a policy restricts it; otherwise use the longest
+    available custom expiration and rotate before expiry.
 - Keep `main` protected. In this personal repository, the ruleset intentionally exempts only:
   - `RaMin0`, for maintainer direct-push and emergency force-push operations.
-  - `github-actions[bot]`, so semantic-release can push release metadata commits directly to
-    `main` after the validated workflow run.
-- Configure the release bypass as the `github-actions[bot]` user. GitHub may reject the built-in
-  GitHub Actions app integration as a bypass actor unless that app is part of the ruleset
-  owner/source.
-- Keep `Workflow Permissions` required. It verifies that `contents: write` is only granted to the
-  release workflow, limiting the blast radius of the `github-actions[bot]` ruleset exemption.
+  - `github-actions[bot]` may appear as a bypass actor for compatibility, but the release workflow
+    must not rely on it. Pushes authenticated with the built-in `GITHUB_TOKEN` are evaluated as the
+    GitHub Actions app, not as the bot user, and GitHub rejected the app bypass for this personal
+    repository.
+- Keep `Workflow Permissions` required. It verifies that no workflow grants `contents: write` to
+  the built-in `GITHUB_TOKEN`; release writes must use the fine-grained `RELEASE_TOKEN` secret.
 - Automated release jobs are guarded for public repositories. Keep the repository public when
   creating releases.
 - Add repository topics:

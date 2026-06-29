@@ -30,7 +30,7 @@ jobs:
           import re
           import sys
 
-          allowed = {Path(".github/workflows/release.yml")}
+          allowed: set[Path] = set()
           contents_write = re.compile(r"^\s*contents\s*:\s*['\"]?write['\"]?\s*$", re.I)
           write_all = re.compile(r"^\s*permissions\s*:\s*['\"]?write-all['\"]?\s*$", re.I)
           errors: list[str] = []
@@ -44,7 +44,7 @@ jobs:
                       errors.append(f"{path}:{line_number}: permissions: write-all is not allowed")
                   if contents_write.fullmatch(line.strip()) and path not in allowed:
                       errors.append(
-                          f"{path}:{line_number}: contents: write is only allowed in release.yml"
+                          f"{path}:{line_number}: contents: write is not allowed for GITHUB_TOKEN"
                       )
 
           if errors:

@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Semantic Release
+  release-token:
+    name: Release Token
     if: >-
       ${{
         github.event.repository.private == false &&
@@ -34,8 +34,26 @@ jobs:
         )
       }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      configured: ${{ steps.release_token.outputs.configured }}
+    steps:
+      - name: Check release token
+        id: release_token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "Release token secret is not configured; skipping release."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    name: Semantic Release
+    needs: release-token
+    if: ${{ needs.release-token.outputs.configured == 'true' }}
+    runs-on: ubuntu-latest
     env:
       COMPONENT_PATH: custom_components/ok
       RELEASE_ASSET_NAME: ok.zip
@@ -51,6 +69,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Confirm validated commit
         id: validated_commit
@@ -75,7 +94,7 @@ jobs:
         uses: python-semantic-release/python-semantic-release@350c48fcb3ffcdfd2e0a235206bc2ecea6b69df0 # v10.5.3
         with:
           build: "false"
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.RELEASE_TOKEN }}
           git_committer_name: github-actions[bot]
           git_committer_email: 41898282+github-actions[bot]@users.noreply.github.com
           changelog: "true"
@@ -128,7 +147,7 @@ jobs:
       - name: Upload HACS release asset
         if: ${{ steps.release.outputs.released == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           gh release upload \
             "${{ steps.release.outputs.tag }}" \
