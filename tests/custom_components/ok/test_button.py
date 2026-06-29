@@ -76,6 +76,11 @@ async def _test_buttons_call_ok_api_actions(tmp_path: Path) -> None:
         assert coordinator.refresh_count == 5
         assert coordinator.force_full_refresh_count == 1
 
+        coordinator.last_update_success = False
+        assert start.available is False
+        assert force_refresh.available is False
+
+        coordinator.last_update_success = True
         coordinator.data = None
         assert start.available is False
     finally:

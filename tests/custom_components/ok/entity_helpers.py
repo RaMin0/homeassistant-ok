@@ -147,6 +147,7 @@ class EntityTestCoordinator:
         self.entry = EntityTestEntry()
         self.client = EntityTestClient()
         self.data: object | None = object()
+        self.last_update_success = True
         self.connector_refs = [connector or make_connector()]
         self.active_charging: dict[str, Any] | None = None
         self.refresh_count = 0

@@ -237,6 +237,15 @@ def _sensor_descriptions_for_entry(entry: OkConfigEntry) -> tuple[OkSensorEntity
 
 class OkSensor(OkEntity, SensorEntity):  # type: ignore[misc]
     entity_description: OkSensorEntityDescription
+    _unrecorded_attributes = frozenset(
+        {
+            "today",
+            "tomorrow",
+            "raw_today",
+            "raw_tomorrow",
+            "prices",
+        }
+    )
 
     def __init__(
         self,
@@ -266,7 +275,7 @@ class OkSensor(OkEntity, SensorEntity):  # type: ignore[misc]
 
     @property
     def available(self) -> bool:
-        return super().available and self.native_value is not None
+        return super().available
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any]:

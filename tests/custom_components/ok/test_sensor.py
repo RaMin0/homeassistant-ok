@@ -53,6 +53,10 @@ async def _test_connector_status_sensor_attrs_and_device_info(tmp_path: Path) ->
         assert entity.device_info["identifiers"] == {("ok", "OK-CHARGER-001")}
         assert entity.device_info["name"] == "Home Charger"
         assert "suggested_area" not in entity.device_info
+
+        coordinator.last_update_success = False
+
+        assert entity.available is False
     finally:
         await hass.async_stop()
 
@@ -66,10 +70,14 @@ async def _test_entity_multi_connector_and_device_info_fallbacks(tmp_path: Path)
     try:
         coordinator = EntityTestCoordinator(hass)
         connector = coordinator.connector_refs[0]
-        coordinator.connector_refs.append(make_connector("OK-CHARGER-001", 2))
-
         connector_status = OkSensor(coordinator, connector, _description("connector_status"))
         connector_status.hass = hass
+
+        assert connector_status.translation_key == "connector_status"
+        assert connector_status.translation_placeholders == {}
+
+        coordinator.connector_refs.append(make_connector("OK-CHARGER-001", 2))
+        connector_status._refresh_multi_connector_translation()
 
         assert connector_status.translation_key == "connector_status_connector"
         assert connector_status.translation_placeholders == {"connector_id": "1"}
@@ -81,6 +89,7 @@ async def _test_entity_multi_connector_and_device_info_fallbacks(tmp_path: Path)
         energy_price = OkSensor(coordinator, connector, _description("energy_price"))
         energy_price.hass = hass
         assert energy_price.available is True
+        assert energy_price.connector is coordinator.connector_refs[0]
 
         coordinator.data = None
         assert energy_price.available is False
@@ -120,7 +129,7 @@ async def _test_connector_status_sensor_rejects_unknown_enum_state(tmp_path: Pat
         entity.hass = hass
 
         assert entity.native_value is None
-        assert entity.available is False
+        assert entity.available is True
     finally:
         await hass.async_stop()
 
@@ -280,7 +289,7 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
         inactive_power.hass = hass
 
         assert inactive_power.native_value is None
-        assert inactive_power.available is False
+        assert inactive_power.available is True
     finally:
         await hass.async_stop()
 
@@ -316,6 +325,13 @@ async def _test_energy_price_sensor_exposes_compatible_attributes(tmp_path: Path
         assert "region_code" not in attrs
         assert "product_type" not in attrs
         assert "electricity_price_origin" not in attrs
+        assert {
+            "today",
+            "tomorrow",
+            "raw_today",
+            "raw_tomorrow",
+            "prices",
+        }.issubset(price._unrecorded_attributes)
     finally:
         await hass.async_stop()
 
@@ -362,7 +378,7 @@ async def _test_last_refresh_sensor(tmp_path: Path) -> None:
 
         coordinator.last_refresh = None
 
-        assert entity.available is False
+        assert entity.available is True
     finally:
         await hass.async_stop()
 
@@ -394,7 +410,7 @@ async def _test_charger_last_refresh_sensor(tmp_path: Path) -> None:
 
         coordinator._charger_last_refresh = None
 
-        assert entity.available is False
+        assert entity.available is True
     finally:
         await hass.async_stop()
 
@@ -444,7 +460,7 @@ async def _test_last_session_sensor(tmp_path: Path) -> None:
 
         for entity in entities.values():
             assert entity.native_value is None
-            assert entity.available is False
+            assert entity.available is True
     finally:
         await hass.async_stop()
 
