@@ -2,6 +2,50 @@
 
 <!-- version list -->
 
+## v0.4.0 (2026-06-29)
+
+### Bug Fixes
+
+- Harden OK entity availability and names
+  ([`fff2b6b`](https://github.com/RaMin0/homeassistant-ok/commit/fff2b6b7e44154cc6c12af3caed8990dde1661e1))
+
+### Continuous Integration
+
+- Allow release workflow to push through ruleset
+  ([`3d63854`](https://github.com/RaMin0/homeassistant-ok/commit/3d638544eff0e90142eeaa2fc6fad08beaadbd3b))
+
+- Create release PR before publishing
+  ([`63f47dd`](https://github.com/RaMin0/homeassistant-ok/commit/63f47ddc04104b47325d3536b055007a2ef00ba0))
+
+- Guard workflow write permissions
+  ([`bc476f7`](https://github.com/RaMin0/homeassistant-ok/commit/bc476f79668f28cee10d37c72510fd45489594aa))
+
+- Run quality checks on hosted python
+  ([`9d1fb9c`](https://github.com/RaMin0/homeassistant-ok/commit/9d1fb9ca002f471378f7e541ef2af1840444206f))
+
+- Run ruff before editable install
+  ([`14d05d9`](https://github.com/RaMin0/homeassistant-ok/commit/14d05d9b399964a6fcc902735f885776988e67b9))
+
+- Split validation workflow jobs
+  ([`d755457`](https://github.com/RaMin0/homeassistant-ok/commit/d755457c3d1ee5a3e6a3038e0ab6571b012ec457))
+
+- Strengthen validation and package checks
+  ([`78d0079`](https://github.com/RaMin0/homeassistant-ok/commit/78d007932c3ad1cb702fc74060f0d59cb9f911f3))
+
+- Use release token for protected releases
+  ([`e62959d`](https://github.com/RaMin0/homeassistant-ok/commit/e62959d60dc9b26468fccbea8ea24697df8249c8))
+
+### Features
+
+- Align OK actions with Home Assistant targets
+  ([`26b42b2`](https://github.com/RaMin0/homeassistant-ok/commit/26b42b298f585a33124a9016202862e1e317cc97))
+
+### Refactoring
+
+- Split OK integration runtime module
+  ([`ed940e3`](https://github.com/RaMin0/homeassistant-ok/commit/ed940e3ecbe7dee133dea0a21f39edfc3ecac8ee))
+
+
 ## v0.3.1 (2026-06-27)
 
 ### Bug Fixes
