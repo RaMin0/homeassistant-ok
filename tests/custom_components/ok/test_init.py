@@ -6,8 +6,15 @@ from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
+import custom_components.ok._integration as ok_integration
 import httpx
 import pytest
+from custom_components.ok._integration import (
+    _async_update_listener,
+    _cleanup_removed_or_disabled_entities,
+    _client_from_entry,
+    _loaded_entries,
+)
 from custom_components.ok.const import (
     APP_PLATFORM,
     APP_SECRET,
@@ -28,10 +35,6 @@ from pytest import MonkeyPatch
 
 from custom_components.ok import (
     OkRuntimeData,
-    _async_update_listener,
-    _cleanup_removed_or_disabled_entities,
-    _client_from_entry,
-    _loaded_entries,
     async_migrate_entry,
     async_remove_config_entry_device,
     async_setup_entry,
@@ -152,8 +155,6 @@ async def _test_setup_entry_builds_runtime_and_forwards_platforms(
 ) -> None:
     import custom_components.ok.coordinator as coordinator_module
 
-    import custom_components.ok as ok
-
     client = FakeClient()
     hass = SimpleNamespace(config_entries=FakeConfigEntries())
     entry = FakeEntry()
@@ -164,7 +165,7 @@ async def _test_setup_entry_builds_runtime_and_forwards_platforms(
         CONF_EMAIL: "user@example.test",
     }
 
-    monkeypatch.setattr(ok, "_client_from_entry", lambda hass, entry: client)
+    monkeypatch.setattr(ok_integration, "_client_from_entry", lambda hass, entry: client)
     monkeypatch.setattr(coordinator_module, "OkDataUpdateCoordinator", FakeCoordinator)
 
     assert await async_setup_entry(hass, entry) is True
@@ -339,8 +340,6 @@ async def _test_setup_entry_cleans_up_when_platform_forwarding_fails(
 ) -> None:
     import custom_components.ok.coordinator as coordinator_module
 
-    import custom_components.ok as ok
-
     client = FakeClient()
     coordinator: FakeCoordinator | None = None
     listener_removed_count = 0
@@ -360,7 +359,7 @@ async def _test_setup_entry_cleans_up_when_platform_forwarding_fails(
     entry = FakeEntry(update_listener_remover=remove_listener)
     config_entries.entries = [entry]
 
-    monkeypatch.setattr(ok, "_client_from_entry", lambda hass, entry: client)
+    monkeypatch.setattr(ok_integration, "_client_from_entry", lambda hass, entry: client)
     monkeypatch.setattr(coordinator_module, "OkDataUpdateCoordinator", build_coordinator)
 
     with pytest.raises(RuntimeError, match="platform setup failed"):
@@ -392,8 +391,6 @@ async def _test_setup_entry_cleans_up_when_platform_forwarding_is_cancelled(
 ) -> None:
     import custom_components.ok.coordinator as coordinator_module
 
-    import custom_components.ok as ok
-
     client = FakeClient()
     coordinator: FakeCoordinator | None = None
 
@@ -407,7 +404,7 @@ async def _test_setup_entry_cleans_up_when_platform_forwarding_is_cancelled(
     entry = FakeEntry(update_listener_remover=lambda: None)
     config_entries.entries = [entry]
 
-    monkeypatch.setattr(ok, "_client_from_entry", lambda hass, entry: client)
+    monkeypatch.setattr(ok_integration, "_client_from_entry", lambda hass, entry: client)
     monkeypatch.setattr(coordinator_module, "OkDataUpdateCoordinator", build_coordinator)
 
     with pytest.raises(asyncio.CancelledError):
