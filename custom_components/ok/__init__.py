@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.helpers import config_validation as cv
+
+from .const import DOMAIN
+
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
@@ -22,16 +26,7 @@ else:
     OkConfigEntry = Any
 
 
-try:
-    from homeassistant.helpers import config_validation as cv
-
-    from .const import DOMAIN
-except ModuleNotFoundError as err:
-    if not str(err.name).startswith("homeassistant"):
-        raise
-    CONFIG_SCHEMA = None
-else:
-    CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: Any, config: dict[str, Any]) -> bool:
