@@ -139,8 +139,9 @@ At a high level, the integration creates an OK Account service device, one Home 
 OK charger, charger/connector entities for status and controls, optional receipt-backed last-session
 entities, and account/charger diagnostic refresh sensors.
 
-Actions take an OK connector status sensor `entity_id`, so automations do not need raw OK charger or
-connector IDs. Schedule actions accept Home Assistant datetime selectors. Naive datetimes are
+Connector-level actions target an OK connector status sensor, so automations do not need raw OK
+charger or connector IDs. Charger-level actions such as restart and set auto start target the OK
+charger device. Schedule actions accept Home Assistant datetime selectors. Naive datetimes are
 interpreted in the Home Assistant local timezone before being sent to OK.
 
 ## 🕒 Schedule Script Blueprint

@@ -9,8 +9,6 @@ import pytest
 from custom_components.ok.api import OkAuthenticationError
 from custom_components.ok.const import (
     ATTR_AUTOSTART,
-    ATTR_CHARGER_ID,
-    ATTR_CONNECTOR_ID,
     ATTR_SCHEDULED_END,
     ATTR_SCHEDULED_START,
     DOMAIN,
@@ -23,10 +21,11 @@ from custom_components.ok.const import (
     SERVICE_UPDATE_CHARGING_SCHEDULE,
 )
 from homeassistant.config_entries import ConfigEntries, ConfigEntryState
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.entity_platform import DATA_DOMAIN_PLATFORM_ENTITIES
 from pytest import MonkeyPatch
 
 from custom_components.ok import OkRuntimeData, async_setup
@@ -98,6 +97,7 @@ class FakeCoordinator:
         self.refresh_count = 0
         self.connector_refs = (SimpleNamespace(station_id="OK-CHARGER-001", connector_id=1),)
         self.active_charging: dict[str, Any] | None = {"chargingToken": "charging-token"}
+        self.entry: Any = None
 
     async def async_request_refresh(self) -> None:
         self.refresh_count += 1
@@ -126,6 +126,25 @@ class FakeEntry:
 
     def async_start_reauth(self, hass: HomeAssistant) -> None:
         self.reauth_count += 1
+
+
+class FakeConnectorStatusEntity:
+    entity_id = "sensor.charger_connector_status"
+    available = True
+    device_class = "enum"
+    should_poll = False
+    supported_features = 0
+
+    def __init__(self, coordinator: FakeCoordinator) -> None:
+        self.coordinator = coordinator
+        self.connector = coordinator.connector_refs[0]
+        self.context: Any = None
+
+    def async_set_context(self, context: Any) -> None:
+        self.context = context
+
+    async def async_request_call(self, coro: Any) -> Any:
+        return await coro
 
 
 def test_schedule_charging_service_adds_local_timezone_to_naive_datetimes(
@@ -278,8 +297,6 @@ async def _test_entity_services_resolve_connector_and_active_token(
             (SERVICE_START_CHARGING, {}),
             (SERVICE_STOP_CHARGING, {}),
             (SERVICE_CANCEL_CHARGING_SCHEDULE, {}),
-            (SERVICE_RESTART, {}),
-            (SERVICE_SET_AUTO_START, {ATTR_AUTOSTART: False}),
         ):
             await hass.services.async_call(
                 DOMAIN,
@@ -291,11 +308,49 @@ async def _test_entity_services_resolve_connector_and_active_token(
         assert client.start_calls == [{"charging_station_id": "OK-CHARGER-001", "connector_id": 1}]
         assert client.stop_calls == ["charging-token"]
         assert client.cancel_calls == ["charging-token"]
+        assert coordinator.refresh_count == 3
+    finally:
+        await hass.async_stop()
+
+
+def test_charger_services_accept_device_targets(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asyncio.run(_test_charger_services_accept_device_targets(tmp_path, monkeypatch))
+
+
+async def _test_charger_services_accept_device_targets(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeServiceClient()
+    try:
+        coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
+        _patch_device_registry(
+            monkeypatch,
+            SimpleNamespace(identifiers={(DOMAIN, "OK-CHARGER-001")}),
+        )
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_RESTART,
+            {ATTR_DEVICE_ID: "device-1"},
+            blocking=True,
+        )
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_AUTO_START,
+            {ATTR_DEVICE_ID: "device-1", ATTR_AUTOSTART: True},
+            blocking=True,
+        )
+
         assert client.restart_calls == ["OK-CHARGER-001"]
         assert client.auto_start_calls == [
-            {"charging_station_id": "OK-CHARGER-001", "autostart": False}
+            {"charging_station_id": "OK-CHARGER-001", "autostart": True}
         ]
-        assert coordinator.refresh_count == 5
+        assert coordinator.refresh_count == 2
     finally:
         await hass.async_stop()
 
@@ -316,90 +371,32 @@ async def _test_entity_service_target_validation_errors(
     try:
         coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
 
-        _patch_entity_registry(monkeypatch, None)
-        await _assert_service_validation_error(
-            hass,
-            SERVICE_START_CHARGING,
-            "sensor.unknown",
-            "entity_not_found",
-        )
-
-        _patch_entity_registry(
-            monkeypatch,
-            SimpleNamespace(platform="sensor", config_entry_id="test-entry"),
-        )
+        entity = _registered_connector_entity(hass)
+        entity.connector = SimpleNamespace(station_id="", connector_id=1)
         await _assert_service_validation_error(
             hass,
             SERVICE_START_CHARGING,
             "sensor.charger_connector_status",
-            "entity_not_ok",
-        )
-
-        _patch_entity_registry(
-            monkeypatch,
-            SimpleNamespace(platform=DOMAIN, config_entry_id=None),
-        )
-        await _assert_service_validation_error(
-            hass,
-            SERVICE_START_CHARGING,
-            "sensor.charger_connector_status",
-            "entity_missing_config_entry",
-        )
-
-        _patch_entity_registry(
-            monkeypatch,
-            SimpleNamespace(platform=DOMAIN, config_entry_id="missing-entry"),
-        )
-        await _assert_service_validation_error(
-            hass,
-            SERVICE_START_CHARGING,
-            "sensor.charger_connector_status",
-            "entry_not_loaded",
-        )
-
-        _patch_entity_registry(
-            monkeypatch,
-            SimpleNamespace(platform=DOMAIN, config_entry_id="test-entry"),
-        )
-        await _assert_service_validation_error(
-            hass,
-            SERVICE_START_CHARGING,
-            "sensor.missing_state",
-            "entity_not_found",
-        )
-
-        hass.states.async_set("sensor.missing_connector", "Available", {})
-        await _assert_service_validation_error(
-            hass,
-            SERVICE_START_CHARGING,
-            "sensor.missing_connector",
             "entity_missing_connector",
         )
 
-        hass.states.async_set(
-            "sensor.bad_connector",
-            "Available",
-            {ATTR_CHARGER_ID: "OK-CHARGER-001", ATTR_CONNECTOR_ID: 0},
-        )
+        entity.connector = SimpleNamespace(station_id="OK-CHARGER-001", connector_id=0)
         await _assert_service_validation_error(
             hass,
             SERVICE_START_CHARGING,
-            "sensor.bad_connector",
+            "sensor.charger_connector_status",
             "entity_missing_connector",
         )
 
-        hass.states.async_set(
-            "sensor.unknown_connector",
-            "Available",
-            {ATTR_CHARGER_ID: "OTHER", ATTR_CONNECTOR_ID: 1},
-        )
+        entity.connector = SimpleNamespace(station_id="OTHER", connector_id=1)
         await _assert_service_validation_error(
             hass,
             SERVICE_START_CHARGING,
-            "sensor.unknown_connector",
+            "sensor.charger_connector_status",
             "connector_not_found",
         )
 
+        entity.connector = coordinator.connector_refs[0]
         coordinator.active_charging = None
         await _assert_service_validation_error(
             hass,
@@ -407,6 +404,26 @@ async def _test_entity_service_target_validation_errors(
             "sensor.charger_connector_status",
             "active_charging_not_found",
         )
+
+        _patch_device_registry(monkeypatch, None)
+        with pytest.raises(ServiceValidationError) as error:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_RESTART,
+                {ATTR_DEVICE_ID: "missing-device"},
+                blocking=True,
+            )
+        assert error.value.translation_key == "device_not_found"
+
+        _patch_device_registry(monkeypatch, SimpleNamespace(identifiers={(DOMAIN, "account_1")}))
+        with pytest.raises(ServiceValidationError) as error:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_RESTART,
+                {ATTR_DEVICE_ID: "account-device"},
+                blocking=True,
+            )
+        assert error.value.translation_key == "device_not_ok"
     finally:
         await hass.async_stop()
 
@@ -469,29 +486,27 @@ async def _setup_entry(
     hass.config_entries = ConfigEntries(hass, {})
     coordinator = FakeCoordinator()
     entry = FakeEntry(client, coordinator)
+    coordinator.entry = entry
     monkeypatch.setattr(hass.config_entries, "async_entries", lambda domain=None: [entry])
-    _patch_entity_registry(
-        monkeypatch,
-        SimpleNamespace(
-            platform=DOMAIN,
-            config_entry_id="test-entry",
-        ),
-    )
-    hass.states.async_set(
-        "sensor.charger_connector_status",
-        "Available",
-        {
-            ATTR_CHARGER_ID: "OK-CHARGER-001",
-            ATTR_CONNECTOR_ID: 1,
-        },
-    )
+    entity = FakeConnectorStatusEntity(coordinator)
+    hass.data.setdefault(DATA_DOMAIN_PLATFORM_ENTITIES, {})[(Platform.SENSOR.value, DOMAIN)] = {
+        entity.entity_id: entity
+    }
     await async_setup(hass, {})
     return coordinator, entry
 
 
-def _patch_entity_registry(monkeypatch: MonkeyPatch, registry_entry: Any) -> None:
+def _registered_connector_entity(hass: HomeAssistant) -> FakeConnectorStatusEntity:
+    entity = hass.data[DATA_DOMAIN_PLATFORM_ENTITIES][(Platform.SENSOR.value, DOMAIN)][
+        "sensor.charger_connector_status"
+    ]
+    assert isinstance(entity, FakeConnectorStatusEntity)
+    return entity
+
+
+def _patch_device_registry(monkeypatch: MonkeyPatch, device_entry: Any) -> None:
     monkeypatch.setattr(
-        er,
+        dr,
         "async_get",
-        lambda hass: SimpleNamespace(async_get=lambda entity_id: registry_entry),
+        lambda hass: SimpleNamespace(async_get=lambda device_id: device_entry),
     )

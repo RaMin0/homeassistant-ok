@@ -24,14 +24,24 @@ def test_service_entity_selectors_target_connector_status_sensor() -> None:
         SERVICE_UPDATE_CHARGING_SCHEDULE,
         SERVICE_CANCEL_CHARGING_SCHEDULE,
         SERVICE_STOP_CHARGING,
-        SERVICE_RESTART,
-        SERVICE_SET_AUTO_START,
     ):
-        assert services[service]["fields"]["entity_id"]["selector"]["entity"] == {
+        assert services[service]["target"]["entity"] == {
             "integration": "ok",
             "domain": "sensor",
             "device_class": "enum",
         }
+
+
+def test_charger_level_service_selectors_target_chargers() -> None:
+    services = _services_yaml()
+
+    restart_fields = services[SERVICE_RESTART]["fields"]
+    assert restart_fields["device_id"]["selector"]["device"] == {"integration": "ok"}
+    assert "entity_id" not in restart_fields
+
+    auto_start_fields = services[SERVICE_SET_AUTO_START]["fields"]
+    assert auto_start_fields["device_id"]["selector"]["device"] == {"integration": "ok"}
+    assert "entity_id" not in auto_start_fields
 
 
 def _services_yaml() -> dict[str, Any]:

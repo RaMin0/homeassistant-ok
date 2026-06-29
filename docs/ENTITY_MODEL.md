@@ -150,19 +150,19 @@ in the attribute value.
 
 ## Services And Entity Targets
 
-All services use `entity_id`, not raw charger IDs or connector IDs. The selected entity must be an
-OK sensor with connector attributes:
+Services do not require raw OK charger IDs or connector IDs. Connector-level services use Home
+Assistant entity targets, and the selected entity must be an OK connector status sensor:
 
 - `ok.start_charging`
 - `ok.stop_charging`
 - `ok.schedule_charging`
 - `ok.update_charging_schedule`
 - `ok.cancel_charging_schedule`
+
+Charger-level services use the OK charger device target:
+
 - `ok.restart`
 - `ok.set_auto_start`
-
-Current service selectors target the connector status sensor because it is the most reliable
-connector-specific entity for users to pick.
 
 ## Entity Changes Checklist
 

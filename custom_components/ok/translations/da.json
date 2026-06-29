@@ -339,23 +339,23 @@
     }
   },
   "exceptions": {
-    "entry_not_loaded": {
-      "message": "OK-konfigurationsposten {config_entry_id} er ikke indlæst."
-    },
-    "entity_not_found": {
-      "message": "Den valgte entitet {entity_id} er ikke tilgængelig."
-    },
-    "entity_not_ok": {
-      "message": "Den valgte entitet {entity_id} er ikke en OK-entitet."
-    },
-    "entity_missing_config_entry": {
-      "message": "Den valgte OK-entitet {entity_id} er ikke knyttet til en indlæst konfigurationspost."
-    },
     "entity_missing_connector": {
       "message": "Den valgte entitet {entity_id} identificerer ikke et OK-ladestik."
     },
     "connector_not_found": {
       "message": "Den valgte entitet {entity_id} matcher ikke et indlæst OK-ladestik."
+    },
+    "charger_target_missing": {
+      "message": "Vælg en OK-opladerenhed."
+    },
+    "device_not_found": {
+      "message": "Den valgte enhed {device_id} er ikke tilgængelig."
+    },
+    "device_not_ok": {
+      "message": "Den valgte enhed {device_id} er ikke en OK-oplader."
+    },
+    "charger_not_found": {
+      "message": "Det valgte mål matcher ikke en indlæst OK-oplader."
     },
     "active_charging_not_found": {
       "message": "Der er ingen aktiv OK-ladesession eller tidsplan for det valgte ladestik."
@@ -388,22 +388,12 @@
   "services": {
     "start_charging": {
       "name": "Start opladning",
-      "description": "Start opladning på et OK-hjemmeladerstik.",
-      "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en OK-ladestikstatussensor for ladestikket."
-        }
-      }
+      "description": "Start opladning på et OK-hjemmeladerstik."
     },
     "schedule_charging": {
       "name": "Planlæg opladning",
       "description": "Planlæg en OK-hjemmeladesession.",
       "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en OK-ladestikstatussensor for ladestikket."
-        },
         "scheduled_start": {
           "name": "Planlagt start",
           "description": "Lokal startdato og -tid for ladeplanen."
@@ -418,10 +408,6 @@
       "name": "Opdater ladeplan",
       "description": "Opdater en eksisterende OK-ladeplan.",
       "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en OK-ladestikstatussensor for den aktive ladesession eller tidsplan."
-        },
         "scheduled_start": {
           "name": "Planlagt start",
           "description": "Lokal startdato og -tid for den opdaterede ladeplan."
@@ -434,31 +420,19 @@
     },
     "cancel_charging_schedule": {
       "name": "Annuller ladeplan",
-      "description": "Annuller en eksisterende OK-ladeplan.",
-      "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en OK-ladestikstatussensor for den aktive ladesession eller tidsplan."
-        }
-      }
+      "description": "Annuller en eksisterende OK-ladeplan."
     },
     "stop_charging": {
       "name": "Stop opladning",
-      "description": "Stop en aktiv OK-ladesession.",
-      "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en OK-ladestikstatussensor for den aktive ladesession."
-        }
-      }
+      "description": "Stop en aktiv OK-ladesession."
     },
     "restart": {
       "name": "Genstart",
       "description": "Genstart en OK-hjemmeoplader.",
       "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en hvilken som helst OK-ladestikstatussensor på opladeren."
+        "device_id": {
+          "name": "Opladerenhed",
+          "description": "Vælg OK-opladerenheden."
         }
       }
     },
@@ -466,9 +440,9 @@
       "name": "Indstil autostart",
       "description": "Aktiver eller deaktiver autostart på en OK-hjemmeoplader.",
       "fields": {
-        "entity_id": {
-          "name": "Statussensor for ladestik",
-          "description": "Vælg en hvilken som helst OK-ladestikstatussensor på opladeren."
+        "device_id": {
+          "name": "Opladerenhed",
+          "description": "Vælg OK-opladerenheden."
         },
         "autostart": {
           "name": "Autostart",

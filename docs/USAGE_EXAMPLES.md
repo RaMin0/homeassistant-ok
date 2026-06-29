@@ -120,8 +120,9 @@ This example uses the same local schedule window shown in the screenshot above.
 ```yaml
 sequence:
   - action: ok.schedule_charging
-    data:
+    target:
       entity_id: sensor.charger_status
+    data:
       scheduled_start: "2026-06-25T11:00:00"
       scheduled_end: "2026-06-25T19:00:00"
 ```

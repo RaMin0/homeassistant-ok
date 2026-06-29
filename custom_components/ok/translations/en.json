@@ -339,23 +339,23 @@
     }
   },
   "exceptions": {
-    "entry_not_loaded": {
-      "message": "The OK config entry {config_entry_id} is not loaded."
-    },
-    "entity_not_found": {
-      "message": "The selected entity {entity_id} is not available."
-    },
-    "entity_not_ok": {
-      "message": "The selected entity {entity_id} is not an OK entity."
-    },
-    "entity_missing_config_entry": {
-      "message": "The selected OK entity {entity_id} is not linked to a loaded config entry."
-    },
     "entity_missing_connector": {
       "message": "The selected entity {entity_id} does not identify an OK charger connector."
     },
     "connector_not_found": {
       "message": "The selected entity {entity_id} does not match a loaded OK charger connector."
+    },
+    "charger_target_missing": {
+      "message": "Select an OK charger device."
+    },
+    "device_not_found": {
+      "message": "The selected device {device_id} is not available."
+    },
+    "device_not_ok": {
+      "message": "The selected device {device_id} is not an OK charger."
+    },
+    "charger_not_found": {
+      "message": "The selected target does not match a loaded OK charger."
     },
     "active_charging_not_found": {
       "message": "No active OK charging session or schedule is available for the selected charger connector."
@@ -388,22 +388,12 @@
   "services": {
     "start_charging": {
       "name": "Start charging",
-      "description": "Start charging on an OK home charger connector.",
-      "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select an OK connector status sensor for the charger connector."
-        }
-      }
+      "description": "Start charging on an OK home charger connector."
     },
     "schedule_charging": {
       "name": "Schedule charging",
       "description": "Schedule an OK home charging session.",
       "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select an OK connector status sensor for the charger connector."
-        },
         "scheduled_start": {
           "name": "Scheduled start",
           "description": "Local start date and time for the charging schedule."
@@ -418,10 +408,6 @@
       "name": "Update charging schedule",
       "description": "Update an existing OK charging schedule.",
       "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select an OK connector status sensor for the active charging session or schedule."
-        },
         "scheduled_start": {
           "name": "Scheduled start",
           "description": "Local start date and time for the updated charging schedule."
@@ -434,31 +420,19 @@
     },
     "cancel_charging_schedule": {
       "name": "Cancel charging schedule",
-      "description": "Cancel an existing OK charging schedule.",
-      "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select an OK connector status sensor for the active charging session or schedule."
-        }
-      }
+      "description": "Cancel an existing OK charging schedule."
     },
     "stop_charging": {
       "name": "Stop charging",
-      "description": "Stop an active OK charging session.",
-      "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select an OK connector status sensor for the active charging session."
-        }
-      }
+      "description": "Stop an active OK charging session."
     },
     "restart": {
       "name": "Restart",
       "description": "Restart an OK home charger.",
       "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select any OK connector status sensor on the charger."
+        "device_id": {
+          "name": "Charger device",
+          "description": "Select the OK charger device."
         }
       }
     },
@@ -466,9 +440,9 @@
       "name": "Set auto start",
       "description": "Enable or disable auto start on an OK home charger.",
       "fields": {
-        "entity_id": {
-          "name": "Connector status sensor",
-          "description": "Select any OK connector status sensor on the charger."
+        "device_id": {
+          "name": "Charger device",
+          "description": "Select the OK charger device."
         },
         "autostart": {
           "name": "Auto start",

@@ -140,9 +140,10 @@ Overordnet opretter integrationen en `OK-konto` service device, én Home Assista
 charger, charger/connector entities til status og kontrol, valgfrie receipt-backed last-session
 entities og diagnostiske refresh-sensorer på konto og charger.
 
-Actions tager en OK connector status sensor `entity_id`, så automations ikke behøver rå OK charger-
-eller connector-IDer. Schedule actions bruger Home Assistant datetime selectors. Naive datetimes
-fortolkes i Home Assistants lokale tidszone før de sendes til OK.
+Connector-level actions targeter en OK connector status sensor, så automations ikke behøver rå OK
+charger- eller connector-IDer. Charger-level actions som genstart og indstil autostart targeter OK
+charger device. Schedule actions bruger Home Assistant datetime selectors. Naive datetimes fortolkes
+i Home Assistants lokale tidszone før de sendes til OK.
 
 ## 🕒 Schedule Script Blueprint
 

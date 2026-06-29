@@ -34,8 +34,9 @@ icon: mdi:battery-clock
 
 sequence:
   - action: ok.schedule_charging
-    data:
+    target:
       entity_id: !input connector_status_entity
+    data:
       scheduled_start: "{{ scheduled_start }}"
       scheduled_end: "{{ scheduled_end }}"
 
