@@ -21,6 +21,7 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 ## GitHub Repository Settings
 
 - Enable Issues.
+- Enable private vulnerability reporting so `SECURITY.md` has a working private report path.
 - Enable squash merges and use the PR title as the squash commit message.
 - Disable merge commits for `main`.
 - The HACS validation job is guarded for public repositories because HACS validation requires a
@@ -40,11 +41,13 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   - `Conventional Commit`
 - The release workflow uses only the built-in GitHub Actions token. It must not require a
   maintainer personal access token or long-lived release token.
-- Keep `main` protected. The ruleset exempts `github-actions[bot]` so semantic-release can push
-  release metadata commits directly to `main` after the validated workflow run.
-- For this personal repository, configure the bypass as the `github-actions[bot]` user. GitHub may
-  reject the built-in GitHub Actions app integration as a bypass actor unless that app is part of
-  the ruleset owner/source.
+- Keep `main` protected. In this personal repository, the ruleset intentionally exempts only:
+  - `RaMin0`, for maintainer direct-push and emergency force-push operations.
+  - `github-actions[bot]`, so semantic-release can push release metadata commits directly to
+    `main` after the validated workflow run.
+- Configure the release bypass as the `github-actions[bot]` user. GitHub may reject the built-in
+  GitHub Actions app integration as a bypass actor unless that app is part of the ruleset
+  owner/source.
 - Keep `Workflow Permissions` required. It verifies that `contents: write` is only granted to the
   release workflow, limiting the blast radius of the `github-actions[bot]` ruleset exemption.
 - Automated release jobs are guarded for public repositories. Keep the repository public when

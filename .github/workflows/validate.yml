@@ -113,7 +113,23 @@ jobs:
       - run: python -m pip install --upgrade pip "build>=1.2,<2" "pip-audit>=2.9,<3" "ruff>=0.12,<1" "twine>=6.0,<7"
       - run: python -m ruff format --check custom_components tests tools
       - run: python -m ruff check custom_components tests tools
-      - run: python -m pip_audit -r requirements-manifest.txt --progress-spinner off
+      - name: Build audit requirements
+        run: |
+          python - <<'PY' > /tmp/ok-audit-requirements.txt
+          from __future__ import annotations
+
+          from pathlib import Path
+          import tomllib
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+          for dependency in pyproject["project"]["dependencies"]:
+              print(dependency)
+          for line in Path("requirements-manifest.txt").read_text().splitlines():
+              stripped = line.strip()
+              if stripped and not stripped.startswith("#"):
+                  print(stripped)
+          PY
+      - run: python -m pip_audit -r /tmp/ok-audit-requirements.txt --progress-spinner off
       - run: python -m build --outdir /tmp/dist
       - run: python -m twine check /tmp/dist/*
       - name: Check package contents
@@ -129,6 +145,7 @@ jobs:
               "custom_components/ok/__init__.py",
               "custom_components/ok/manifest.json",
               "custom_components/ok/api/__init__.py",
+              "custom_components/ok/py.typed",
               "custom_components/ok/translations/en.json",
           }
           with zipfile.ZipFile(wheel) as archive:
@@ -146,11 +163,13 @@ jobs:
         python-version:
           - "3.13"
           - "3.14"
-    container: python:${{ matrix.python-version }}-slim
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e .
+      - run: python -m pip install -e ".[firebase]" -r requirements-manifest.txt "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2"
       - name: Compile bundled API client
         run: |
           python - <<'PY'
@@ -176,3 +195,11 @@ jobs:
           assert AsyncOkApiClient
           assert OkApiClient
           PY
+      - name: Run bundled API client tests
+        run: |
+          python -m pytest \
+            tests/test_client_async.py \
+            tests/test_client_sync.py \
+            tests/test_firestore.py \
+            tests/test_package_metadata.py \
+            tests/test_signing.py

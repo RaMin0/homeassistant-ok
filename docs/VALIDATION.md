@@ -64,9 +64,24 @@ docker compose run --rm \
   -w /workspace \
   --entrypoint sh \
   homeassistant \
-  -lc 'python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
+  -lc 'set -e
+  python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
   python -m pip install -e ".[dev]" -r requirements-manifest.txt >/tmp/ok-pip.log && \
-  python -m pip_audit -r requirements-manifest.txt --progress-spinner off && \
+  python - <<'"'"'PY'"'"' > /tmp/ok-audit-requirements.txt
+from __future__ import annotations
+
+from pathlib import Path
+import tomllib
+
+pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+for dependency in pyproject["project"]["dependencies"]:
+    print(dependency)
+for line in Path("requirements-manifest.txt").read_text().splitlines():
+    stripped = line.strip()
+    if stripped and not stripped.startswith("#"):
+        print(stripped)
+PY
+  python -m pip_audit -r /tmp/ok-audit-requirements.txt --progress-spinner off && \
   python -m ruff format --check custom_components tests tools && \
   python -m ruff check custom_components tests tools && \
   MYPYPATH=/usr/src/homeassistant python -m mypy && \
@@ -87,9 +102,24 @@ docker run --rm \
   -v "$PWD":/workspace \
   -w /workspace \
   ghcr.io/home-assistant/home-assistant:stable \
-  sh -lc 'python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
+  sh -lc 'set -e
+  python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
   python -m pip install -e ".[dev]" -r requirements-manifest.txt >/tmp/ok-pip.log && \
-  python -m pip_audit -r requirements-manifest.txt --progress-spinner off && \
+  python - <<'"'"'PY'"'"' > /tmp/ok-audit-requirements.txt
+from __future__ import annotations
+
+from pathlib import Path
+import tomllib
+
+pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+for dependency in pyproject["project"]["dependencies"]:
+    print(dependency)
+for line in Path("requirements-manifest.txt").read_text().splitlines():
+    stripped = line.strip()
+    if stripped and not stripped.startswith("#"):
+        print(stripped)
+PY
+  python -m pip_audit -r /tmp/ok-audit-requirements.txt --progress-spinner off && \
   python -m ruff format --check custom_components tests tools && \
   python -m ruff check custom_components tests tools && \
   MYPYPATH=/usr/src/homeassistant python -m mypy && \
