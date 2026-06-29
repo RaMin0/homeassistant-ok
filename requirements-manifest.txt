@@ -1,4 +1,4 @@
 # Mirror of custom_components/ok/manifest.json requirements for Dependabot and pip-audit.
 # Keep these entries in the same order as the manifest requirements; tests enforce this.
-google-auth==2.55.0
-google-cloud-firestore==2.27.0
+google-auth==2.55.1
+google-cloud-firestore==2.28.0
