@@ -6,7 +6,7 @@ from email.utils import format_datetime
 
 import httpx
 import pytest
-from custom_components.ok.api import (
+from api import (
     OkApiClient,
     OkCommandError,
     OkConfigurationError,
@@ -17,9 +17,9 @@ from custom_components.ok.api import (
     OkStatusError,
     OkTimeoutError,
 )
-from custom_components.ok.api._client import OkApiConfig, _error_message, _request_id
-from custom_components.ok.api._signing import SHA_1, SHA_256, generate_signature
-from custom_components.ok.api._version import __version__
+from api._client import OkApiConfig, _error_message, _request_id
+from api._signing import SHA_1, SHA_256, generate_signature
+from api._version import __version__
 
 
 def test_service_flow_signs_payloads_and_stores_session_state() -> None:

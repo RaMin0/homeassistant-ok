@@ -4,7 +4,7 @@ import json
 import tomllib
 from pathlib import Path
 
-from custom_components.ok.api import __version__
+from api import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
 

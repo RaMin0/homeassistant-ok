@@ -5,7 +5,7 @@ import json
 
 import httpx
 import pytest
-from custom_components.ok.api import (
+from api import (
     AsyncOkApiClient,
     OkCommandError,
     OkConfigurationError,

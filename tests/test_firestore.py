@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import pytest
-from custom_components.ok.api import (
+from api import (
     AsyncOkApiClient,
     OkApiClient,
     OkConfigurationError,
     parse_nanoseconds_timestamp,
 )
-from custom_components.ok.api._firestore import (
+from api._firestore import (
     _AsyncFirestoreWatchState,
     _create_default_firestore_client,
     _enqueue_queued_event,
@@ -73,7 +73,7 @@ def test_decode_firestore_value_handles_edge_shapes() -> None:
 
 
 def test_default_firestore_client_uses_anonymous_credentials(monkeypatch) -> None:
-    import custom_components.ok.api._firestore as firestore_module
+    import api._firestore as firestore_module
 
     class AnonymousCredentials:
         pass
@@ -251,7 +251,7 @@ def test_realtime_watcher_reports_deleted_or_missing_snapshots() -> None:
 
 
 def test_realtime_watcher_closes_owned_firestore_client(monkeypatch) -> None:
-    import custom_components.ok.api._firestore as firestore_module
+    import api._firestore as firestore_module
 
     events = []
 
@@ -300,7 +300,7 @@ def test_realtime_watcher_closes_owned_firestore_client(monkeypatch) -> None:
 def test_realtime_watcher_closes_owned_firestore_client_after_setup_failure(
     monkeypatch,
 ) -> None:
-    import custom_components.ok.api._firestore as firestore_module
+    import api._firestore as firestore_module
 
     class FirestoreClient:
         closed = False
@@ -554,7 +554,7 @@ def test_realtime_watcher_validates_firestore_client_shape() -> None:
 
 
 def test_realtime_watcher_requires_optional_dependency_by_default(monkeypatch) -> None:
-    import custom_components.ok.api._firestore as firestore_module
+    import api._firestore as firestore_module
 
     def import_module(name: str) -> object:
         raise ImportError(name)

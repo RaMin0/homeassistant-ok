@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 
-from custom_components.ok.api._signing import SHA_1, SHA_256, add_hmac, generate_signature
+from api._signing import SHA_1, SHA_256, add_hmac, generate_signature
 
 
 def test_generate_signature_matches_ok_payload_shape() -> None:
