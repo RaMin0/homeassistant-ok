@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## v0.4.1 (2026-06-29)
+
+### Bug Fixes
+
+- Declare config entry schema statically
+  ([`40cf8fc`](https://github.com/RaMin0/homeassistant-ok/commit/40cf8fca006e0640223c67fb820718f7f14d5008))
+
+### Chores
+
+- **deps**: Bump google-auth from 2.55.0 to 2.55.1 in the python-dependencies group across 1
+  directory ([#6](https://github.com/RaMin0/homeassistant-ok/pull/6),
+  [`d2d78b5`](https://github.com/RaMin0/homeassistant-ok/commit/d2d78b540d9c508891d70e5b46a1f8cbb5297656))
+
+- **deps**: Bump home-assistant/actions/hassfest from e91ad1948e57189485b9c1ad608af0c303946f89 to
+  f4ca6f671bd429efb108c0f2fa0ae8af0215986c in the github-actions group across 1 directory
+  ([#5](https://github.com/RaMin0/homeassistant-ok/pull/5),
+  [`e6e5549`](https://github.com/RaMin0/homeassistant-ok/commit/e6e5549eeb8855290c549d41e7a3716449153d4a))
+
+### Continuous Integration
+
+- Cache Python dependencies in validation
+  ([`f02ba35`](https://github.com/RaMin0/homeassistant-ok/commit/f02ba35c091bd4288d1f2c030caf09985eaebe04))
+
+- Fix dependabot commit scope
+  ([`f6b4ab2`](https://github.com/RaMin0/homeassistant-ok/commit/f6b4ab279cdc5595660d607fbe16b0662da48832))
+
+- Reduce dependabot noise
+  ([`a0e1d84`](https://github.com/RaMin0/homeassistant-ok/commit/a0e1d84633f743aac9f210f062fdaff4cfea4e53))
+
+### Testing
+
+- Isolate bundled API client imports
+  ([`b46e227`](https://github.com/RaMin0/homeassistant-ok/commit/b46e227d3aa9b6f596e66bbfcc1a5fecb698a1fb))
+
+
 ## v0.4.0 (2026-06-29)
 
 ### Bug Fixes
