@@ -69,9 +69,9 @@ This checklist is for maintainers preparing the OK integration for public GitHub
 
 ### Current Baseline Release
 
-The current public baseline is `v0.3.1`. It matches the version in `pyproject.toml`,
-`custom_components/ok/manifest.json`, and `custom_components/ok/api/_version.py`, and the GitHub
-Release includes `ok.zip` for HACS.
+The current public baseline is the latest GitHub Release. Its tag must match the version in
+`pyproject.toml`, `custom_components/ok/manifest.json`, and
+`custom_components/ok/api/_version.py`, and the GitHub Release must include `ok.zip` for HACS.
 
 Do not publish to PyPI while the OK API client remains bundled. The repository uses HACS
 release-asset installation through `zip_release`, so every public release users can select in HACS
@@ -89,8 +89,8 @@ must include an `ok.zip` asset stamped with the released version.
    - `custom_components/ok/manifest.json`
    - `custom_components/ok/api/_version.py`
    - `CHANGELOG.md`
-6. The workflow creates a tag such as `v0.3.1` on that release metadata commit and creates a
-   GitHub Release using `CHANGELOG.md`.
+6. The workflow creates a tag such as `vX.Y.Z` on that release metadata commit and creates a GitHub
+   Release using `CHANGELOG.md`.
 7. The workflow checks out the released commit, builds `ok.zip` from `custom_components/ok`, and
    uploads that asset to the GitHub Release for HACS.
 

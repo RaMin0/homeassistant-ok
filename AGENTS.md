@@ -152,9 +152,10 @@ Use Conventional Commit PR titles and squash merges:
 
 Do not publish to PyPI while the OK client remains bundled.
 
-The release workflow uses the built-in GitHub Actions token. The repository ruleset exempts
-`github-actions[bot]` so semantic-release can push the release metadata commit, tag, GitHub
-Release, and `ok.zip` from the validated `main` workflow run without a maintainer PAT.
+The release workflow keeps the built-in `GITHUB_TOKEN` read-only and uses the repository secret
+`RELEASE_TOKEN` for write operations. `RELEASE_TOKEN` is a fine-grained personal access token scoped
+only to `RaMin0/homeassistant-ok` with `Contents: Read and write`, allowing semantic-release to push
+the release metadata commit, tag, GitHub Release, and `ok.zip` from the validated `main` workflow.
 
 ## When Unsure
 
