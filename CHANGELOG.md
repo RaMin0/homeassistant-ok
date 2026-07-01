@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.4.2 (2026-07-01)
+
+### Bug Fixes
+
+- Handle OK current charging schedule changes
+  ([`fcf1221`](https://github.com/RaMin0/homeassistant-ok/commit/fcf1221f00402864d99dce535f2e9b107777b853))
+
+### Documentation
+
+- Align release guidance
+  ([`1521627`](https://github.com/RaMin0/homeassistant-ok/commit/1521627dd24424b5670b62d8d7ba0f2c31bc4c65))
+
+
 ## v0.4.1 (2026-06-29)
 
 ### Bug Fixes

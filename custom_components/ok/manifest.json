@@ -13,5 +13,5 @@
     "google-auth==2.55.1",
     "google-cloud-firestore==2.27.0"
   ],
-  "version": "0.4.1"
+  "version": "0.4.2"
 }
