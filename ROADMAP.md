@@ -113,6 +113,10 @@ Planned work:
 These are useful, but not blockers for the current Gold+ target:
 
 - Optional live validation suite gated behind explicit environment variables.
+- Support multiple OK schedules per active charging session. The current implementation reads the
+  first schedule returned by the current-chargings API.
+- Expose OK smart charging plan data once the read/write API behavior is understood and can be
+  tested hermetically.
 - More dashboard examples for scheduling and price cards.
 - Additional repair issues for repeated API schema drift or unsupported account/device
   shapes.

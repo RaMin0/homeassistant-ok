@@ -71,6 +71,7 @@ class FakeOkClient:
         self.station_status_updated = "2025-06-09T12:24:11Z"
         self.connector_session_power_w = 3522
         self.charging_status_updated = "2025-06-05T12:10:12.702511Z"
+        self.expected_charging_status_token = "charging-token-001"
         self.station_watch_configuration_error = False
         self.station_watch_failures = 0
         self.station_watch_attempts = 0
@@ -133,15 +134,13 @@ class FakeOkClient:
 
     async def get_charging_status(self, charging_token: str) -> FirestoreDocument:
         self.charging_status_calls += 1
-        assert charging_token == "charging-token-001"
+        assert charging_token == self.expected_charging_status_token
         return FirestoreDocument(
             name=f"documents/OK/Emsp/RemoteTransactions/{charging_token}",
             fields={
                 "status": "Charging",
                 "powerInW": self.connector_session_power_w,
                 "chargeInWh": 5835,
-                "scheduledStart": "2025-06-05T10:30:00Z",
-                "scheduledEnd": "2025-06-05T13:00:00Z",
             },
             create_time="2025-06-04T23:04:23.378539Z",
             update_time=self.charging_status_updated,
@@ -255,6 +254,43 @@ async def _test_coordinator_collects_ok_api_shaped_data(tmp_path: Path) -> None:
         assert ("OK-CHARGER-001", 1) in client.station_watch_callbacks
         assert "charging-token-001" in client.charging_watch_callbacks
     finally:
+        await hass.async_stop()
+
+
+def test_coordinator_uses_firestore_token_for_status_paths(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_uses_firestore_token_for_status_paths(tmp_path))
+
+
+async def _test_coordinator_uses_firestore_token_for_status_paths(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    client.expected_charging_status_token = "firestore-token-001"
+    client.current_chargings_response = [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "locationId": "location-id-001",
+            "chargingToken": "charging-token-001",
+            "firestoreToken": "firestore-token-001",
+        }
+    ]
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        active = coordinator.active_charging_for("OK-CHARGER-001", 1)
+        assert active is not None
+        assert active["chargingToken"] == "charging-token-001"
+        assert active["firestoreToken"] == "firestore-token-001"
+        assert coordinator.charging_status_for(active).name.endswith(
+            "/RemoteTransactions/firestore-token-001"
+        )
+        assert "firestore-token-001" in client.charging_watch_callbacks
+        assert "charging-token-001" not in client.charging_watch_callbacks
+    finally:
+        await coordinator.async_close_realtime_watches()
         await hass.async_stop()
 
 
@@ -645,8 +681,6 @@ async def _test_coordinator_applies_realtime_firestore_events(tmp_path: Path) ->
                         "status": "Charging",
                         "powerInW": 7200,
                         "chargeInWh": 6000,
-                        "scheduledStart": "2025-06-05T10:30:00Z",
-                        "scheduledEnd": "2025-06-05T13:00:00Z",
                     },
                     create_time="2025-06-04T23:04:23.378539Z",
                     update_time="2025-06-05T12:11:12.702511Z",

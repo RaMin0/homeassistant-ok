@@ -32,7 +32,7 @@ from .entity import OkEntity
 
 type SensorValue = str | int | float | datetime | None
 
-_charging_field = ok_schedule.charging_field
+_charging_status_field = ok_schedule.charging_status_field
 _duration_seconds = ok_schedule.duration_seconds
 _parse_datetime = ok_schedule.parse_datetime
 _schedule_duration = ok_schedule.schedule_duration
@@ -100,7 +100,7 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda coordinator, connector: _watts_to_kw(
-            _charging_field(coordinator, connector, "powerInW")
+            _charging_status_field(coordinator, connector, "powerInW")
         ),
     ),
     OkSensorEntityDescription(
@@ -109,7 +109,7 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         value_fn=lambda coordinator, connector: _watt_hours_to_kwh(
-            _charging_field(coordinator, connector, "chargeInWh")
+            _charging_status_field(coordinator, connector, "chargeInWh")
         ),
     ),
     OkSensorEntityDescription(

@@ -47,14 +47,14 @@ for single-connector chargers.
 | Sensor | `connector_status` | Connector | Enabled | None | Firestore charger status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_power` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_energy` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
-| Sensor | `schedule_duration` | Connector | Enabled | None | Derived from the active schedule start/end in the charging-session status document. |
+| Sensor | `schedule_duration` | Connector | Enabled | None | Derived from the first active schedule in the current-chargings response. |
 | Sensor | `last_session_ended` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_started` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_duration` | Charger | Option-controlled | None | Derived from last receipt start/end. |
 | Sensor | `last_session_energy` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_cost` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
-| DateTime | `schedule_from` | Connector | Enabled | None | Active schedule start from the charging-session status document; edits existing schedules. |
-| DateTime | `schedule_to` | Connector | Enabled | None | Active schedule end from the charging-session status document; edits existing schedules. |
+| DateTime | `schedule_from` | Connector | Enabled | None | Start from the first active schedule in the current-chargings response; edits existing schedules. |
+| DateTime | `schedule_to` | Connector | Enabled | None | End from the first active schedule in the current-chargings response; edits existing schedules. |
 | Switch | `auto_start` | Charger | Enabled | Config | Charger metadata and set-auto-start command. |
 | Button | `start_charging` | Connector | Enabled | None | OK start charging command. |
 | Button | `stop_charging` | Connector | Enabled | None | OK stop charging command; requires active session token. |
@@ -66,8 +66,12 @@ for single-connector chargers.
 option is enabled by default in the config flow/options flow.
 
 `schedule_from` and `schedule_to` are datetime entities, not sensors. Their state is empty until
-OK reports an active schedule, and changing either value updates the existing schedule. Create a
-new schedule with the `ok.schedule_charging` action or the schedule script blueprint.
+OK reports an active schedule in the current-chargings response. OK schedules may contain only a
+start time, in which case `schedule_to` is empty and `schedule_duration` is unavailable. The
+integration currently reads the first schedule entry only. Changing either datetime value updates
+the existing schedule; `schedule_from` may be updated without an end time, while `schedule_to`
+requires a known start time. Create a new schedule with the `ok.schedule_charging` action or the
+schedule script blueprint.
 
 ## Important Attributes
 

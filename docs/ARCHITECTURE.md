@@ -57,13 +57,15 @@ The coordinator combines REST-backed OK app endpoints with Firestore realtime do
 - Account settings are fetched during setup.
 - Charger/location metadata is refreshed roughly every 30 minutes.
 - Energy prices are refreshed roughly every 30 minutes per charger.
-- Current charging sessions are refreshed every 60 seconds while active and every 5 minutes when
-  idle.
+- Current charging sessions and schedule summaries are refreshed every 60 seconds while active and
+  every 5 minutes when idle.
 - Full receipt lists are fetched on setup, force refresh, and roughly every 12 hours when
   last-session entities are enabled.
 - Quick receipt data is fetched for known sessions after they finish.
 - Connector status and charging-session status prefer Firestore realtime watches, with HTTP
   snapshot fallback when watches are unavailable, failed, missing, or force refresh is requested.
+  Schedule start/end values come from the current-chargings REST response, not Firestore status
+  documents.
 
 ## Realtime Firestore Watches
 

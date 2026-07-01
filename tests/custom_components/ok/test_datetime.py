@@ -15,7 +15,12 @@ from custom_components.ok.datetime import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 
-from .entity_helpers import EntitySetupEntry, EntityTestCoordinator, make_connector
+from .entity_helpers import (
+    EntitySetupEntry,
+    EntityTestCoordinator,
+    make_active_charging,
+    make_connector,
+)
 
 
 def _description(key: str) -> Any:
@@ -30,7 +35,7 @@ async def _test_schedule_datetime_entities_expose_current_schedule(tmp_path: Pat
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
-        coordinator.active_charging = {"chargingToken": "charging-token"}
+        coordinator.active_charging = make_active_charging()
         connector = coordinator.connector_refs[0]
 
         schedule_from = OkScheduleDateTime(coordinator, connector, _description("schedule_from"))
@@ -49,6 +54,14 @@ async def _test_schedule_datetime_entities_expose_current_schedule(tmp_path: Pat
 
         assert schedule_from.native_value is None
         assert schedule_from.available is True
+
+        coordinator.active_charging = {"chargingToken": "charging-token", "schedules": []}
+
+        assert schedule_from.native_value is None
+
+        coordinator.active_charging = {"chargingToken": "charging-token", "schedules": ["bad"]}
+
+        assert schedule_from.native_value is None
 
         coordinator.data = None
 
@@ -91,7 +104,7 @@ async def _test_schedule_datetime_entity_updates_schedule(tmp_path: Path) -> Non
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
-        coordinator.active_charging = {"chargingToken": "charging-token"}
+        coordinator.active_charging = make_active_charging()
         connector = coordinator.connector_refs[0]
 
         schedule_from = OkScheduleDateTime(coordinator, connector, _description("schedule_from"))
@@ -105,11 +118,13 @@ async def _test_schedule_datetime_entity_updates_schedule(tmp_path: Path) -> Non
         assert coordinator.client.update_calls == [
             {
                 "charging_token": "charging-token",
+                "charging_station_id": "OK-CHARGER-001",
                 "scheduled_start": "2026-06-14T16:00:00+00:00",
                 "scheduled_end": "2026-06-14T18:00:00+00:00",
             },
             {
                 "charging_token": "charging-token",
+                "charging_station_id": "OK-CHARGER-001",
                 "scheduled_start": "2026-06-14T15:30:00+00:00",
                 "scheduled_end": "2026-06-14T19:00:00+00:00",
             },
@@ -119,22 +134,134 @@ async def _test_schedule_datetime_entity_updates_schedule(tmp_path: Path) -> Non
         await hass.async_stop()
 
 
-def test_schedule_datetime_entity_rejects_incomplete_schedule(tmp_path: Path) -> None:
-    asyncio.run(_test_schedule_datetime_entity_rejects_incomplete_schedule(tmp_path))
+def test_schedule_datetime_entity_localizes_naive_datetime(tmp_path: Path) -> None:
+    asyncio.run(_test_schedule_datetime_entity_localizes_naive_datetime(tmp_path))
 
 
-async def _test_schedule_datetime_entity_rejects_incomplete_schedule(tmp_path: Path) -> None:
+async def _test_schedule_datetime_entity_localizes_naive_datetime(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    try:
+        hass.config.time_zone = "Europe/Copenhagen"
+        coordinator = EntityTestCoordinator(hass)
+        coordinator.active_charging = make_active_charging()
+        connector = coordinator.connector_refs[0]
+
+        schedule_from = OkScheduleDateTime(coordinator, connector, _description("schedule_from"))
+        schedule_from.hass = hass
+        await schedule_from.async_set_value(datetime(2026, 6, 14, 16, 0))
+
+        assert coordinator.client.update_calls == [
+            {
+                "charging_token": "charging-token",
+                "charging_station_id": "OK-CHARGER-001",
+                "scheduled_start": "2026-06-14T16:00:00+02:00",
+                "scheduled_end": "2026-06-14T18:00:00+00:00",
+            }
+        ]
+    finally:
+        await hass.async_stop()
+
+
+def test_schedule_datetime_entity_updates_start_only_schedule(tmp_path: Path) -> None:
+    asyncio.run(_test_schedule_datetime_entity_updates_start_only_schedule(tmp_path))
+
+
+async def _test_schedule_datetime_entity_updates_start_only_schedule(tmp_path: Path) -> None:
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
-        coordinator.active_charging = {"chargingToken": "charging-token"}
+        coordinator.active_charging = make_active_charging(scheduled_end=None)
         connector = coordinator.connector_refs[0]
-        coordinator.charging_status_documents["charging-token"].fields.pop("scheduledEnd")
+        schedule_from = OkScheduleDateTime(coordinator, connector, _description("schedule_from"))
+        schedule_from.hass = hass
+
+        await schedule_from.async_set_value(datetime(2026, 6, 14, 16, 0, tzinfo=UTC))
+
+        assert coordinator.client.update_calls == [
+            {
+                "charging_token": "charging-token",
+                "charging_station_id": "OK-CHARGER-001",
+                "scheduled_start": "2026-06-14T16:00:00+00:00",
+                "scheduled_end": None,
+            }
+        ]
+    finally:
+        await hass.async_stop()
+
+
+def test_schedule_datetime_entity_can_complete_start_only_schedule(tmp_path: Path) -> None:
+    asyncio.run(_test_schedule_datetime_entity_can_complete_start_only_schedule(tmp_path))
+
+
+async def _test_schedule_datetime_entity_can_complete_start_only_schedule(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    try:
+        coordinator = EntityTestCoordinator(hass)
+        coordinator.active_charging = make_active_charging(scheduled_end=None)
+        connector = coordinator.connector_refs[0]
+        schedule_to = OkScheduleDateTime(coordinator, connector, _description("schedule_to"))
+        schedule_to.hass = hass
+
+        assert schedule_to.native_value is None
+
+        await schedule_to.async_set_value(datetime(2026, 6, 14, 19, 0, tzinfo=UTC))
+
+        assert coordinator.client.update_calls == [
+            {
+                "charging_token": "charging-token",
+                "charging_station_id": "OK-CHARGER-001",
+                "scheduled_start": "2026-06-14T15:30:00+00:00",
+                "scheduled_end": "2026-06-14T19:00:00+00:00",
+            }
+        ]
+    finally:
+        await hass.async_stop()
+
+
+def test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path: Path) -> None:
+    asyncio.run(_test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path))
+
+
+async def _test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    try:
+        coordinator = EntityTestCoordinator(hass)
+        coordinator.active_charging = {
+            "schedules": [
+                {
+                    "scheduledStart": "2026-06-14T15:30:00Z",
+                    "scheduledEnd": "2026-06-14T18:00:00Z",
+                }
+            ]
+        }
+        connector = coordinator.connector_refs[0]
         schedule_from = OkScheduleDateTime(coordinator, connector, _description("schedule_from"))
         schedule_from.hass = hass
 
         with pytest.raises(ServiceValidationError) as error:
             await schedule_from.async_set_value(datetime(2026, 6, 14, 16, 0, tzinfo=UTC))
+
+        assert error.value.translation_key == "active_charging_not_found"
+        assert coordinator.client.update_calls == []
+    finally:
+        await hass.async_stop()
+
+
+def test_schedule_datetime_entity_rejects_end_without_start(tmp_path: Path) -> None:
+    asyncio.run(_test_schedule_datetime_entity_rejects_end_without_start(tmp_path))
+
+
+async def _test_schedule_datetime_entity_rejects_end_without_start(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    try:
+        coordinator = EntityTestCoordinator(hass)
+        coordinator.active_charging = make_active_charging(scheduled_start=None)
+        connector = coordinator.connector_refs[0]
+        schedule_to = OkScheduleDateTime(coordinator, connector, _description("schedule_to"))
+        schedule_to.hass = hass
+
+        with pytest.raises(ServiceValidationError) as error:
+            await schedule_to.async_set_value(datetime(2026, 6, 14, 19, 0, tzinfo=UTC))
 
         assert error.value.translation_key == "schedule_window_missing"
         assert coordinator.client.update_calls == []
@@ -150,7 +277,7 @@ async def _test_schedule_datetime_entity_rejects_invalid_schedule_window(tmp_pat
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
-        coordinator.active_charging = {"chargingToken": "charging-token"}
+        coordinator.active_charging = make_active_charging()
         connector = coordinator.connector_refs[0]
         schedule_to = OkScheduleDateTime(coordinator, connector, _description("schedule_to"))
         schedule_to.hass = hass

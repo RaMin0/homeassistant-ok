@@ -104,12 +104,20 @@ class StationPricesResponse(TypedDict, total=False):
     electricityPriceOrigin: str
 
 
+class ChargingSchedule(TypedDict, total=False):
+    scheduledStart: str | None
+    scheduledEnd: str | None
+
+
 class CurrentCharging(TypedDict, total=False):
     csIdentifier: str
     connectorId: int
     locationId: str
     firestoreToken: str
     chargingToken: str
+    chargingTransactionType: str
+    initiatedAt: str
+    schedules: list[ChargingSchedule]
 
 
 class ChargingCommandResponse(TypedDict, total=False):

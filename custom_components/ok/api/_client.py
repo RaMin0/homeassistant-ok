@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Self, cast
@@ -36,6 +36,7 @@ from ._models import (
     ChargingCommandResponse,
     ChargingLocation,
     ChargingReceipt,
+    ChargingSchedule,
     CurrentCharging,
     DeviceSettingsResponse,
     FirestoreDocument,
@@ -56,6 +57,7 @@ DEFAULT_STATUS_URL = (
     "https://firestore.googleapis.com/v1/projects/"
     "knp-ok-app-prod/databases/(default)/documents/OK/Emsp"
 )
+_CURRENT_CHARGINGS_PATH = "v3/home-charging-station/get-current-chargings"
 _MAX_ERROR_DETAIL_LENGTH = 200
 
 
@@ -280,6 +282,33 @@ class _BaseOkApiClient:
             raise _unexpected_response_error(endpoint, response)
         return cast(list[JsonObject], payload)
 
+    def _expect_current_chargings(
+        self,
+        response: JsonValue | _OkApiResponse,
+    ) -> list[CurrentCharging]:
+        payload = _response_payload(response)
+        if isinstance(payload, Mapping):
+            current_charging = payload.get("current_charging")
+            if not isinstance(current_charging, list):
+                raise _unexpected_response_error("get_chargings", response)
+            if any(not isinstance(item, Mapping) for item in current_charging):
+                raise _unexpected_response_error("get_chargings", response)
+            return _validate_current_chargings(
+                (
+                    _normalize_current_charging(cast(Mapping[str, Any], item))
+                    for item in current_charging
+                ),
+                response,
+            )
+
+        if isinstance(payload, list) and all(isinstance(item, Mapping) for item in payload):
+            return _validate_current_chargings(
+                (_normalize_current_charging(cast(Mapping[str, Any], item)) for item in payload),
+                response,
+            )
+
+        raise _unexpected_response_error("get_chargings", response)
+
 
 class OkApiClient(_BaseOkApiClient):
     """Synchronous OK API client."""
@@ -439,13 +468,7 @@ class OkApiClient(_BaseOkApiClient):
         )
 
     def get_chargings(self) -> list[CurrentCharging]:
-        return cast(
-            list[CurrentCharging],
-            self._expect_json_object_list(
-                self._data_request("GET", "v2/HomeChargingStation/currentChargings"),
-                "get_chargings",
-            ),
-        )
+        return self._expect_current_chargings(self._data_request("GET", _CURRENT_CHARGINGS_PATH))
 
     def start_charging(
         self,
@@ -499,22 +522,31 @@ class OkApiClient(_BaseOkApiClient):
         self,
         charging_token: str,
         *,
+        charging_station_id: str,
         scheduled_start: datetime | str,
-        scheduled_end: datetime | str,
-    ) -> JsonObject:
+        scheduled_end: datetime | str | None = None,
+    ) -> ChargingCommandResponse:
         payload: JsonObject = {
-            "scheduledStart": self._format_datetime(scheduled_start),
-            "scheduledEnd": self._format_datetime(scheduled_end),
+            "charging-station-id": charging_station_id,
+            "charging-token": charging_token,
+            "from": self._format_datetime(scheduled_start),
         }
-        return self._expect_json_object(
-            self._checked_command_response(
-                self._data_request(
-                    "PUT",
-                    f"v2/HomeChargingStation/schedule/{self._segment(charging_token)}",
-                    json_body=payload,
+        if scheduled_end is not None:
+            payload["to"] = self._format_datetime(scheduled_end)
+        return cast(
+            ChargingCommandResponse,
+            _normalize_command_response(
+                self._expect_json_object(
+                    self._checked_command_response(
+                        self._data_request(
+                            "POST",
+                            "v1/home-charging-station/schedule-charging",
+                            json_body=payload,
+                        )
+                    ),
+                    "update_charging_schedule",
                 )
             ),
-            "update_charging_schedule",
         )
 
     def cancel_charging_schedule(self, charging_token: str) -> JsonObject:
@@ -801,12 +833,8 @@ class AsyncOkApiClient(_BaseOkApiClient):
         )
 
     async def get_chargings(self) -> list[CurrentCharging]:
-        return cast(
-            list[CurrentCharging],
-            self._expect_json_object_list(
-                await self._data_request("GET", "v2/HomeChargingStation/currentChargings"),
-                "get_chargings",
-            ),
+        return self._expect_current_chargings(
+            await self._data_request("GET", _CURRENT_CHARGINGS_PATH)
         )
 
     async def start_charging(
@@ -869,22 +897,31 @@ class AsyncOkApiClient(_BaseOkApiClient):
         self,
         charging_token: str,
         *,
+        charging_station_id: str,
         scheduled_start: datetime | str,
-        scheduled_end: datetime | str,
-    ) -> JsonObject:
+        scheduled_end: datetime | str | None = None,
+    ) -> ChargingCommandResponse:
         payload: JsonObject = {
-            "scheduledStart": self._format_datetime(scheduled_start),
-            "scheduledEnd": self._format_datetime(scheduled_end),
+            "charging-station-id": charging_station_id,
+            "charging-token": charging_token,
+            "from": self._format_datetime(scheduled_start),
         }
-        return self._expect_json_object(
-            self._checked_command_response(
-                await self._data_request(
-                    "PUT",
-                    f"v2/HomeChargingStation/schedule/{self._segment(charging_token)}",
-                    json_body=payload,
+        if scheduled_end is not None:
+            payload["to"] = self._format_datetime(scheduled_end)
+        return cast(
+            ChargingCommandResponse,
+            _normalize_command_response(
+                self._expect_json_object(
+                    self._checked_command_response(
+                        await self._data_request(
+                            "POST",
+                            "v1/home-charging-station/schedule-charging",
+                            json_body=payload,
+                        )
+                    ),
+                    "update_charging_schedule",
                 )
             ),
-            "update_charging_schedule",
         )
 
     async def cancel_charging_schedule(self, charging_token: str) -> JsonObject:
@@ -1049,6 +1086,139 @@ def _response_payload(response: JsonValue | _OkApiResponse) -> JsonValue:
     if isinstance(response, _OkApiResponse):
         return response.payload
     return response
+
+
+def _normalize_current_charging(data: Mapping[str, Any]) -> CurrentCharging:
+    charging: CurrentCharging = {}
+
+    station_id = _first_string(data, "csIdentifier", "charging_station_id")
+    if station_id is not None:
+        charging["csIdentifier"] = station_id
+
+    connector_id = _first_int(data, "connectorId", "connector_id")
+    if connector_id is not None:
+        charging["connectorId"] = connector_id
+
+    location_id = _first_string(data, "locationId", "location_identifier")
+    if location_id is not None:
+        charging["locationId"] = location_id
+
+    charging_token = _first_string(data, "chargingToken", "charging_token")
+    if charging_token is not None:
+        charging["chargingToken"] = charging_token
+
+    firestore_token = _first_string(data, "firestoreToken", "firestore_token")
+    if firestore_token is not None:
+        charging["firestoreToken"] = firestore_token
+    elif charging_token is not None:
+        charging["firestoreToken"] = charging_token
+
+    transaction_type = _first_string(data, "chargingTransactionType", "charging_transaction_type")
+    if transaction_type is not None:
+        charging["chargingTransactionType"] = transaction_type
+
+    initiated_at = _first_string(data, "initiatedAt", "initiated_at")
+    if initiated_at is not None:
+        charging["initiatedAt"] = initiated_at
+
+    schedules = data.get("schedules")
+    if isinstance(schedules, list):
+        charging["schedules"] = [
+            _normalize_charging_schedule(schedule)
+            for schedule in schedules
+            if isinstance(schedule, Mapping)
+        ]
+
+    return charging
+
+
+def _validate_current_chargings(
+    chargings: Iterable[CurrentCharging],
+    response: JsonValue | _OkApiResponse,
+) -> list[CurrentCharging]:
+    valid: list[CurrentCharging] = []
+    for charging in chargings:
+        if not _valid_current_charging(charging):
+            raise _unexpected_response_error("get_chargings", response)
+        valid.append(charging)
+    return valid
+
+
+def _valid_current_charging(charging: CurrentCharging) -> bool:
+    station_id = charging.get("csIdentifier")
+    if not isinstance(station_id, str) or not station_id:
+        return False
+
+    connector_id = charging.get("connectorId")
+    if isinstance(connector_id, bool) or not isinstance(connector_id, int):
+        return False
+    if connector_id <= 0:
+        return False
+
+    return _valid_string(charging.get("chargingToken")) or _valid_string(
+        charging.get("firestoreToken")
+    )
+
+
+def _normalize_charging_schedule(data: Mapping[str, Any]) -> ChargingSchedule:
+    schedule: ChargingSchedule = {}
+
+    start = _first_string(data, "scheduledStart", "from", "start", "startTime")
+    if start is not None:
+        schedule["scheduledStart"] = start
+
+    end, found_end = _first_optional_string(data, "scheduledEnd", "to", "end", "endTime")
+    if found_end:
+        schedule["scheduledEnd"] = end
+
+    return schedule
+
+
+def _normalize_command_response(data: JsonObject) -> JsonObject:
+    normalized = dict(data)
+    charging_token = data.get("charging-token")
+    if isinstance(charging_token, str):
+        normalized["chargingToken"] = charging_token
+    firestore_token = data.get("firestore-token")
+    if isinstance(firestore_token, str):
+        normalized["firestoreToken"] = firestore_token
+    return normalized
+
+
+def _first_string(data: Mapping[str, Any], *keys: str) -> str | None:
+    value, found = _first_optional_string(data, *keys)
+    return value if found else None
+
+
+def _first_optional_string(data: Mapping[str, Any], *keys: str) -> tuple[str | None, bool]:
+    for key in keys:
+        if key not in data:
+            continue
+        value = data[key]
+        if isinstance(value, str) and value:
+            return value, True
+        if value is None:
+            return None, True
+    return None, False
+
+
+def _first_int(data: Mapping[str, Any], *keys: str) -> int | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                continue
+    return None
+
+
+def _valid_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value)
 
 
 def _unexpected_response_error(

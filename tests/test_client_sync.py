@@ -17,7 +17,13 @@ from api import (
     OkStatusError,
     OkTimeoutError,
 )
-from api._client import OkApiConfig, _error_message, _request_id
+from api._client import (
+    OkApiConfig,
+    _error_message,
+    _normalize_command_response,
+    _normalize_current_charging,
+    _request_id,
+)
 from api._signing import SHA_1, SHA_256, generate_signature
 from api._version import __version__
 
@@ -106,10 +112,41 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
             return httpx.Response(200, content=b"")
         if path.endswith("/restart"):
             return httpx.Response(200, content=b"")
-        if path.endswith("/currentChargings"):
-            return httpx.Response(200, json=[{"chargingToken": "token"}])
+        if path.endswith("/get-current-chargings"):
+            return httpx.Response(
+                200,
+                json={
+                    "current_charging": [
+                        {
+                            "charging_station_id": "OK-CHARGER-001",
+                            "connector_id": 1,
+                            "location_identifier": "loc",
+                            "charging_token": "token",
+                            "charging_transaction_type": "Scheduled",
+                            "schedules": [
+                                {
+                                    "from": "2025-01-01T01:00:00+00:00",
+                                    "to": None,
+                                }
+                            ],
+                            "initiated_at": "2025-01-01T00:30:00+00:00",
+                        }
+                    ]
+                },
+            )
         if path.endswith("/start"):
             return httpx.Response(200, json={"result": "Success", "chargingToken": "token"})
+        if path.endswith("/schedule-charging"):
+            assert body == {
+                "charging-station-id": "OK-CHARGER-001",
+                "charging-token": "token",
+                "from": "2025-01-01T01:00:00+00:00",
+                "to": "2025-01-01T02:00:00+00:00",
+            }
+            return httpx.Response(
+                200,
+                json={"charging-token": "token", "firestore-token": "token"},
+            )
         if path.endswith("/schedule/token"):
             return httpx.Response(200, json={})
         if path.endswith("/stop"):
@@ -133,7 +170,15 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
         assert client.get_station_prices("station-id")["prices"][0]["applicableTime"]
         assert client.set_station_auto_start("station-id", False) == {}
         assert client.restart_station("station-id") == {}
-        assert client.get_chargings()[0]["chargingToken"] == "token"
+        chargings = client.get_chargings()
+        assert chargings[0]["csIdentifier"] == "OK-CHARGER-001"
+        assert chargings[0]["connectorId"] == 1
+        assert chargings[0]["locationId"] == "loc"
+        assert chargings[0]["chargingToken"] == "token"
+        assert chargings[0]["firestoreToken"] == "token"
+        assert chargings[0]["chargingTransactionType"] == "Scheduled"
+        assert chargings[0]["schedules"][0]["scheduledStart"] == "2025-01-01T01:00:00+00:00"
+        assert chargings[0]["schedules"][0]["scheduledEnd"] is None
         assert (
             client.start_charging(charging_station_id="station-id", connector_id=1)["result"]
             == "Success"
@@ -150,10 +195,11 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
         assert (
             client.update_charging_schedule(
                 "token",
+                charging_station_id="OK-CHARGER-001",
                 scheduled_start="2025-01-01T01:00:00+00:00",
                 scheduled_end="2025-01-01T02:00:00+00:00",
-            )
-            == {}
+            )["chargingToken"]
+            == "token"
         )
         assert client.cancel_charging_schedule("token") == {}
         assert client.stop_charging("token") == {}
@@ -201,6 +247,145 @@ def test_status_methods_decode_firestore_documents() -> None:
     assert document.fields["connectorId"] == 1
     assert document.fields["powerInW"] == 3522
     assert document.update_time == "2025-01-01T01:00:00Z"
+
+
+def test_get_chargings_accepts_empty_v3_wrapper() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/get-current-chargings")
+        return httpx.Response(200, json={"current_charging": []})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+
+        assert client.get_chargings() == []
+
+
+def test_get_chargings_accepts_legacy_list_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/get-current-chargings")
+        return httpx.Response(
+            200,
+            json=[{"csIdentifier": "OK-CHARGER-001", "connectorId": 1, "chargingToken": "token"}],
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+
+        chargings = client.get_chargings()
+
+    assert chargings == [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "chargingToken": "token",
+            "firestoreToken": "token",
+        }
+    ]
+
+
+def test_current_charging_normalization_handles_supported_field_variants() -> None:
+    normalized = _normalize_current_charging(
+        {
+            "csIdentifier": "station-id",
+            "connectorId": "2",
+            "locationId": "loc",
+            "firestoreToken": "firestore-token",
+            "chargingToken": "charging-token",
+            "chargingTransactionType": "Scheduled",
+            "initiatedAt": "2025-01-01T00:30:00+00:00",
+            "schedules": [
+                {"start": "2025-01-01T01:00:00+00:00", "end": "2025-01-01T02:00:00+00:00"},
+                "ignored",
+            ],
+        }
+    )
+
+    assert normalized == {
+        "csIdentifier": "station-id",
+        "connectorId": 2,
+        "locationId": "loc",
+        "firestoreToken": "firestore-token",
+        "chargingToken": "charging-token",
+        "chargingTransactionType": "Scheduled",
+        "initiatedAt": "2025-01-01T00:30:00+00:00",
+        "schedules": [
+            {
+                "scheduledStart": "2025-01-01T01:00:00+00:00",
+                "scheduledEnd": "2025-01-01T02:00:00+00:00",
+            }
+        ],
+    }
+
+    assert _normalize_command_response({"result": "Success"}) == {"result": "Success"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"current_charging": {}},
+        {"current_charging": ["bad-item"]},
+        ["bad-item"],
+    ],
+)
+def test_get_chargings_rejects_unexpected_v3_wrapper(payload: object) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/get-current-chargings")
+        return httpx.Response(200, json=payload)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+
+        with pytest.raises(OkResponseError):
+            client.get_chargings()
+
+
+@pytest.mark.parametrize(
+    "current_charging",
+    [
+        {"connector_id": 1, "charging_token": "token"},
+        {"charging_station_id": "OK-CHARGER-001", "connector_id": 0, "charging_token": "token"},
+        {"charging_station_id": "OK-CHARGER-001", "connector_id": 1},
+    ],
+)
+def test_get_chargings_rejects_malformed_current_charging_item(
+    current_charging: dict[str, object],
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/get-current-chargings")
+        return httpx.Response(
+            200,
+            json={"current_charging": [current_charging]},
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+
+        with pytest.raises(OkResponseError):
+            client.get_chargings()
 
 
 def test_status_error_preserves_payload_and_status_code() -> None:

@@ -24,8 +24,8 @@ schedule_charging:
         datetime:
     scheduled_end:
       name: Scheduled end
-      description: Local end date and time for the charging schedule.
-      required: true
+      description: Optional local end date and time for the charging schedule.
+      required: false
       selector:
         datetime:
 
@@ -46,8 +46,8 @@ update_charging_schedule:
         datetime:
     scheduled_end:
       name: Scheduled end
-      description: Local end date and time for the updated charging schedule.
-      required: true
+      description: Optional local end date and time for the updated charging schedule.
+      required: false
       selector:
         datetime:
 

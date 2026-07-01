@@ -239,6 +239,7 @@ def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiCli
 def _register_services(hass: HomeAssistant) -> None:
     from homeassistant.components.sensor import SensorDeviceClass
     from homeassistant.const import Platform
+    from homeassistant.exceptions import ServiceValidationError
     from homeassistant.helpers import service as service_helper
 
     from .action import (
@@ -275,16 +276,34 @@ def _register_services(hass: HomeAssistant) -> None:
     async def schedule_charging(entity: Any, call: ServiceCall) -> None:
         target = _target_from_entity(entity)
         scheduled_start, scheduled_end = _schedule_window_from_call(hass, call)
-        response = await async_call_ok_api(
-            target.runtime.client.schedule_charging(
-                charging_station_id=target.station_id,
-                connector_id=target.connector_id,
-                scheduled_start=scheduled_start,
-                scheduled_end=scheduled_end,
-            ),
-            hass=hass,
-            entry=target.entry,
-        )
+        token = _optional_active_charging_token(target)
+        if token is not None:
+            response = await async_call_ok_api(
+                target.runtime.client.update_charging_schedule(
+                    token,
+                    charging_station_id=target.station_id,
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                ),
+                hass=hass,
+                entry=target.entry,
+            )
+        else:
+            if scheduled_end is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="active_charging_not_found",
+                )
+            response = await async_call_ok_api(
+                target.runtime.client.schedule_charging(
+                    charging_station_id=target.station_id,
+                    connector_id=target.connector_id,
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                ),
+                hass=hass,
+                entry=target.entry,
+            )
         validate_command_response(response)
         await target.runtime.coordinator.async_request_operational_refresh()
 
@@ -292,15 +311,17 @@ def _register_services(hass: HomeAssistant) -> None:
         target = _target_from_entity(entity)
         token = _active_charging_token(target)
         scheduled_start, scheduled_end = _schedule_window_from_call(hass, call)
-        await async_call_ok_api(
+        response = await async_call_ok_api(
             target.runtime.client.update_charging_schedule(
                 token,
+                charging_station_id=target.station_id,
                 scheduled_start=scheduled_start,
                 scheduled_end=scheduled_end,
             ),
             hass=hass,
             entry=target.entry,
         )
+        validate_command_response(response)
         await target.runtime.coordinator.async_request_operational_refresh()
 
     async def cancel_charging_schedule(entity: Any, call: ServiceCall) -> None:
@@ -359,7 +380,7 @@ def _register_services(hass: HomeAssistant) -> None:
         entity_device_classes=(SensorDeviceClass.ENUM,),
         schema={
             _vol().Required(ATTR_SCHEDULED_START): _cv().datetime,
-            _vol().Required(ATTR_SCHEDULED_END): _cv().datetime,
+            _vol().Optional(ATTR_SCHEDULED_END): _cv().datetime,
         },
         func=schedule_charging,
     )
@@ -371,7 +392,7 @@ def _register_services(hass: HomeAssistant) -> None:
         entity_device_classes=(SensorDeviceClass.ENUM,),
         schema={
             _vol().Required(ATTR_SCHEDULED_START): _cv().datetime,
-            _vol().Required(ATTR_SCHEDULED_END): _cv().datetime,
+            _vol().Optional(ATTR_SCHEDULED_END): _cv().datetime,
         },
         func=update_charging_schedule,
     )
@@ -559,14 +580,7 @@ def _charger_exists(runtime: OkRuntimeData, station_id: str) -> bool:
 def _active_charging_token(target: OkServiceTarget) -> str:
     from homeassistant.exceptions import ServiceValidationError
 
-    from .action import active_charging_token
-    from .const import DOMAIN
-
-    charging = target.runtime.coordinator.active_charging_for(
-        target.station_id,
-        target.connector_id,
-    )
-    token = active_charging_token(charging)
+    token = _optional_active_charging_token(target)
     if token is not None:
         return token
 
@@ -576,21 +590,35 @@ def _active_charging_token(target: OkServiceTarget) -> str:
     )
 
 
-def _schedule_window_from_call(hass: HomeAssistant, call: ServiceCall) -> tuple[str, str]:
+def _optional_active_charging_token(target: OkServiceTarget) -> str | None:
+    from .action import active_charging_token
+
+    charging = target.runtime.coordinator.active_charging_for(
+        target.station_id,
+        target.connector_id,
+    )
+    return active_charging_token(charging)
+
+
+def _schedule_window_from_call(hass: HomeAssistant, call: ServiceCall) -> tuple[str, str | None]:
     from homeassistant.exceptions import ServiceValidationError
 
     from .const import ATTR_SCHEDULED_END, ATTR_SCHEDULED_START, DOMAIN
 
     scheduled_start = _schedule_datetime(hass, call.data[ATTR_SCHEDULED_START])
-    scheduled_end = _schedule_datetime(hass, call.data[ATTR_SCHEDULED_END])
-    if scheduled_end <= scheduled_start:
+    scheduled_end = (
+        _schedule_datetime(hass, call.data[ATTR_SCHEDULED_END])
+        if ATTR_SCHEDULED_END in call.data
+        else None
+    )
+    if scheduled_end is not None and scheduled_end <= scheduled_start:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
             translation_key="invalid_schedule_window",
         )
     return (
         scheduled_start.isoformat(),
-        scheduled_end.isoformat(),
+        scheduled_end.isoformat() if scheduled_end is not None else None,
     )
 
 

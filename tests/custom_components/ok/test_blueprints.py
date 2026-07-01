@@ -44,10 +44,14 @@ async def _test_schedule_charging_script_blueprint(tmp_path: Path) -> None:
         SCRIPT_ENTITY_SCHEMA(substituted)
 
         assert substituted["icon"] == "mdi:battery-clock"
-        assert substituted["sequence"][0]["action"] == "ok.schedule_charging"
-        assert substituted["sequence"][0]["target"]["entity_id"] == (
-            "sensor.charger_connector_status"
-        )
+        with_end = substituted["sequence"][0]["choose"][0]["sequence"][0]
+        without_end = substituted["sequence"][0]["default"][0]
+        assert with_end["action"] == "ok.schedule_charging"
+        assert with_end["target"]["entity_id"] == "sensor.charger_connector_status"
+        assert with_end["data"]["scheduled_end"] == "{{ scheduled_end }}"
+        assert without_end["action"] == "ok.schedule_charging"
+        assert without_end["target"]["entity_id"] == "sensor.charger_connector_status"
+        assert "scheduled_end" not in without_end["data"]
     finally:
         cv._hass.hass = previous_hass
         await hass.async_stop()

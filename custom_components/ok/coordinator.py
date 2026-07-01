@@ -234,8 +234,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         current_chargings = await self._async_current_chargings(now)
         charging_status = self._charging_status_from_cache(current_chargings)
         for charging in current_chargings:
-            token = charging.get("chargingToken") or charging.get("firestoreToken")
-            if isinstance(token, str) and token:
+            token = _charging_status_token(charging)
+            if token is not None:
                 if self._should_fetch_realtime_snapshot(("charging", token), token):
                     document = await self._call_api(self.client.get_charging_status(token))
                     if (connector_key := _charging_connector_key(charging)) is not None:
@@ -630,7 +630,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         desired = {
             token
             for charging in current_chargings
-            if (token := _charging_token(charging)) is not None
+            if (token := _charging_status_token(charging)) is not None
         }
         return {
             token: document
@@ -745,8 +745,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         data = cast(OkData | None, self.data)
         if data is None or charging is None:
             return None
-        token = charging.get("chargingToken") or charging.get("firestoreToken")
-        if not isinstance(token, str):
+        token = _charging_status_token(charging)
+        if token is None:
             return None
         return data.charging_status.get(token)
 
@@ -1081,7 +1081,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         if data is None:
             return None
         for charging in data.current_chargings:
-            if _charging_token(charging) == charging_token:
+            if _charging_status_token(charging) == charging_token:
                 return charging
         return None
 
@@ -1216,7 +1216,7 @@ def _realtime_watch_keys(data: OkData) -> set[_RealtimeWatchKey]:
         if connector_ref.station_id and connector_ref.connector_id:
             keys.add(("station", connector_ref.station_id, connector_ref.connector_id))
     for charging in data.current_chargings:
-        token = _charging_token(charging)
+        token = _charging_status_token(charging)
         if token:
             keys.add(("charging", token))
     return keys
@@ -1266,6 +1266,11 @@ def _quick_receipt_source(charging_token: str) -> str:
 
 def _charging_token(charging: CurrentCharging) -> str | None:
     token = charging.get("chargingToken") or charging.get("firestoreToken")
+    return token if isinstance(token, str) and token else None
+
+
+def _charging_status_token(charging: CurrentCharging) -> str | None:
+    token = charging.get("firestoreToken") or charging.get("chargingToken")
     return token if isinstance(token, str) and token else None
 
 

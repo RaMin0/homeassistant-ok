@@ -25,19 +25,30 @@ fields:
       datetime:
   scheduled_end:
     name: Scheduled end
-    description: Local end date and time for the charging schedule.
-    required: true
+    description: Optional local end date and time for the charging schedule.
+    required: false
     selector:
       datetime:
 
 icon: mdi:battery-clock
 
 sequence:
-  - action: ok.schedule_charging
-    target:
-      entity_id: !input connector_status_entity
-    data:
-      scheduled_start: "{{ scheduled_start }}"
-      scheduled_end: "{{ scheduled_end }}"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ scheduled_end is defined and scheduled_end not in [none, ''] }}"
+        sequence:
+          - action: ok.schedule_charging
+            target:
+              entity_id: !input connector_status_entity
+            data:
+              scheduled_start: "{{ scheduled_start }}"
+              scheduled_end: "{{ scheduled_end }}"
+    default:
+      - action: ok.schedule_charging
+        target:
+          entity_id: !input connector_status_entity
+        data:
+          scheduled_start: "{{ scheduled_start }}"
 
 mode: single

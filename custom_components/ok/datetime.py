@@ -95,12 +95,12 @@ class OkScheduleDateTime(OkEntity, DateTimeEntity):  # type: ignore[misc]
             scheduled_start = schedule_start(self.coordinator, self.connector)
             scheduled_end = _schedule_datetime(self.hass, value)
 
-        if scheduled_start is None or scheduled_end is None:
+        if scheduled_start is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="schedule_window_missing",
             )
-        if scheduled_end <= scheduled_start:
+        if scheduled_end is not None and scheduled_end <= scheduled_start:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="invalid_schedule_window",
@@ -118,8 +118,9 @@ class OkScheduleDateTime(OkEntity, DateTimeEntity):  # type: ignore[misc]
         await async_call_ok_api(
             self.coordinator.client.update_charging_schedule(
                 token,
+                charging_station_id=self.station_id,
                 scheduled_start=scheduled_start.isoformat(),
-                scheduled_end=scheduled_end.isoformat(),
+                scheduled_end=scheduled_end.isoformat() if scheduled_end is not None else None,
             ),
             hass=self.hass,
             entry=self.coordinator.entry,

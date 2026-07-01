@@ -56,6 +56,7 @@ Polling is still used for data that is not fully covered by those realtime docum
 
 - Account and charger discovery.
 - Charger metadata.
+- Current charging sessions and schedule start/end values.
 - Energy prices.
 - Receipt and last-session data.
 - Watcher recovery and HTTP snapshots after startup, retries, or force refresh.
@@ -74,10 +75,14 @@ If updates look delayed:
 
 ## Schedule, Stop, Update, Or Cancel Fails
 
-Creating a schedule targets the selected connector and needs a valid schedule window. The integration
-validates that scheduled end is after scheduled start; in normal use, choose a future window because
-OK may reject past schedules. Updating, stopping, canceling, and editing the schedule datetime
-entities require OK to report an active charging session or schedule for that connector.
+Creating a schedule targets the selected connector and needs a valid start time. The scheduled end
+is optional when OK already reports an active charging session or schedule for that connector; if an
+end is supplied, the integration validates that it is after scheduled start. In normal use, choose a
+future schedule because OK may reject past schedules. Updating, stopping, canceling, and editing the
+schedule datetime entities require OK to report an active charging session or schedule for that
+connector.
+OK may report a schedule with only a start time. In that case, `schedule_from` shows the start,
+`schedule_to` is empty, and `schedule_duration` is unavailable until an end time exists.
 
 - Select the OK connector status sensor for the correct connector.
 - Confirm the OK app shows an active charging session or schedule.

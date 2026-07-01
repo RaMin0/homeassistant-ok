@@ -147,8 +147,8 @@ interpreted in the Home Assistant local timezone before being sent to OK.
 ## 🕒 Schedule Script Blueprint
 
 The repository includes a script blueprint that can be called from a dashboard button to prompt for
-a charging schedule window. Import, copy, dashboard usage, and equivalent script action examples are
-documented in [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md).
+a charging schedule start and optional end. Import, copy, dashboard usage, and equivalent script
+action examples are documented in [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md).
 
 The My Home Assistant blueprint button at the top imports the blueprint from the current `main`
 branch. If you want the exact blueprint from an installed release, copy it from the release source or

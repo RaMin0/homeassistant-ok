@@ -56,10 +56,42 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                 return httpx.Response(200, content=b"")
             if path.endswith("/restart"):
                 return httpx.Response(200, content=b"")
-            if path.endswith("/currentChargings"):
-                return httpx.Response(200, json=[{"chargingToken": "token"}])
+            if path.endswith("/get-current-chargings"):
+                return httpx.Response(
+                    200,
+                    json={
+                        "current_charging": [
+                            {
+                                "charging_station_id": "OK-CHARGER-001",
+                                "connector_id": 1,
+                                "location_identifier": "loc",
+                                "charging_token": "token",
+                                "charging_transaction_type": "Scheduled",
+                                "schedules": [
+                                    {
+                                        "from": "2025-01-01T01:00:00+00:00",
+                                        "to": None,
+                                    }
+                                ],
+                                "initiated_at": "2025-01-01T00:30:00+00:00",
+                            }
+                        ]
+                    },
+                )
             if path.endswith("/start"):
                 return httpx.Response(200, json={"result": "Success", "chargingToken": "token"})
+            if path.endswith("/schedule-charging"):
+                body = json.loads(request.content)
+                assert body == {
+                    "charging-station-id": "OK-CHARGER-001",
+                    "charging-token": "token",
+                    "from": "2025-01-01T01:00:00+00:00",
+                    "to": "2025-01-01T02:00:00+00:00",
+                }
+                return httpx.Response(
+                    200,
+                    json={"charging-token": "token", "firestore-token": "token"},
+                )
             if path.endswith("/schedule/token"):
                 return httpx.Response(200, json={})
             if path.endswith("/stop"):
@@ -110,6 +142,7 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                 )
                 updated = await client.update_charging_schedule(
                     "token",
+                    charging_station_id="OK-CHARGER-001",
                     scheduled_start="2025-01-01T01:00:00+00:00",
                     scheduled_end="2025-01-01T02:00:00+00:00",
                 )
@@ -127,10 +160,18 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
         assert prices["prices"][0]["applicableTime"] == "2025-01-01T00:00:00Z"
         assert auto_start == {}
         assert restarted == {}
+        assert chargings[0]["csIdentifier"] == "OK-CHARGER-001"
+        assert chargings[0]["connectorId"] == 1
+        assert chargings[0]["locationId"] == "loc"
         assert chargings[0]["chargingToken"] == "token"
+        assert chargings[0]["firestoreToken"] == "token"
+        assert chargings[0]["chargingTransactionType"] == "Scheduled"
+        assert chargings[0]["schedules"][0]["scheduledStart"] == "2025-01-01T01:00:00+00:00"
+        assert chargings[0]["schedules"][0]["scheduledEnd"] is None
         assert started["result"] == "Success"
         assert scheduled["chargingToken"] == "token"
-        assert updated == {}
+        assert updated["chargingToken"] == "token"
+        assert updated["firestoreToken"] == "token"
         assert cancelled == {}
         assert stopped == {}
         assert receipts[0]["chargingStationId"] == "station-id"

@@ -18,6 +18,7 @@ from custom_components.ok.coordinator import (
     OkData,
     OkDataUpdateCoordinator,
     _charging_connector_key,
+    _charging_status_token,
     _document_status,
     _document_version,
     _finished_chargings,
@@ -151,6 +152,19 @@ def test_coordinator_helper_edges() -> None:
         ("station", "charger", 2),
         ("charging", "token"),
     }
+    assert (
+        _charging_status_token({"chargingToken": "command-token", "firestoreToken": "status-token"})
+        == "status-token"
+    )
+    assert _realtime_watch_keys(
+        OkData(
+            settings=None,
+            locations=(),
+            current_chargings=(
+                {"chargingToken": "command-token", "firestoreToken": "status-token"},
+            ),
+        )
+    ) == {("charging", "status-token")}
 
 
 def test_coordinator_helper_additional_edges() -> None:
@@ -195,10 +209,10 @@ def test_coordinator_helper_additional_edges() -> None:
     assert _finished_chargings(
         (
             {"chargingToken": "finished"},
-            {"firestoreToken": "active"},
+            {"chargingToken": "active", "firestoreToken": "previous-status"},
             {"chargingToken": ""},
         ),
-        ({"firestoreToken": "active"},),
+        ({"chargingToken": "active", "firestoreToken": "current-status"},),
     ) == ({"chargingToken": "finished"},)
     assert _receipt_identity({}) is None
     assert _receipt_identity(receipt) == (

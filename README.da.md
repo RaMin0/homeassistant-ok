@@ -147,9 +147,9 @@ i Home Assistants lokale tidszone før de sendes til OK.
 
 ## 🕒 Schedule Script Blueprint
 
-Repositoriet indeholder en script blueprint der kan kaldes fra en dashboard-knap og spørge efter et
-tidsrum for planlagt opladning. Import, manuel kopi, dashboard-brug og tilsvarende script action er
-dokumenteret i [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md).
+Repositoriet indeholder en script blueprint der kan kaldes fra en dashboard-knap og spørge efter en
+start og valgfri slut for planlagt opladning. Import, manuel kopi, dashboard-brug og tilsvarende
+script action er dokumenteret i [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md).
 
 My Home Assistant blueprint-knappen øverst importerer blueprinten fra den aktuelle `main` branch.
 Hvis du vil bruge den præcise blueprint fra en installeret release, så kopiér den fra release-kilden

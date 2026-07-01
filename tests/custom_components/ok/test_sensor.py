@@ -18,7 +18,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import EntityCategory
 
-from .entity_helpers import EntitySetupEntry, EntityTestCoordinator, make_connector, make_document
+from .entity_helpers import (
+    EntitySetupEntry,
+    EntityTestCoordinator,
+    make_active_charging,
+    make_connector,
+    make_document,
+)
 
 
 def _description(key: str) -> Any:
@@ -53,6 +59,11 @@ async def _test_connector_status_sensor_attrs_and_device_info(tmp_path: Path) ->
         assert entity.device_info["identifiers"] == {("ok", "OK-CHARGER-001")}
         assert entity.device_info["name"] == "Home Charger"
         assert "suggested_area" not in entity.device_info
+
+        coordinator.station_status_documents.clear()
+
+        assert entity.native_value is None
+        assert entity.extra_state_attributes == {}
 
         coordinator.last_update_success = False
 
@@ -263,7 +274,7 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
-        coordinator.active_charging = {"chargingToken": "charging-token"}
+        coordinator.active_charging = make_active_charging()
         connector = coordinator.connector_refs[0]
 
         power = OkSensor(coordinator, connector, _description("connector_session_power"))

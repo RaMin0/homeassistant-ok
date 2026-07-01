@@ -400,7 +400,7 @@
         },
         "scheduled_end": {
           "name": "Planlagt slut",
-          "description": "Lokal slutdato og -tid for ladeplanen."
+          "description": "Valgfri lokal slutdato og -tid for ladeplanen."
         }
       }
     },
@@ -414,7 +414,7 @@
         },
         "scheduled_end": {
           "name": "Planlagt slut",
-          "description": "Lokal slutdato og -tid for den opdaterede ladeplan."
+          "description": "Valgfri lokal slutdato og -tid for den opdaterede ladeplan."
         }
       }
     },

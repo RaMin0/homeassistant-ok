@@ -4,6 +4,14 @@
     "connectorId": 1,
     "locationId": "location-id-001",
     "firestoreToken": "charging-token-001",
-    "chargingToken": "charging-token-001"
+    "chargingToken": "charging-token-001",
+    "chargingTransactionType": "Scheduled",
+    "initiatedAt": "2025-06-05T10:00:00Z",
+    "schedules": [
+      {
+        "scheduledStart": "2025-06-05T10:30:00Z",
+        "scheduledEnd": "2025-06-05T13:00:00Z"
+      }
+    ]
   }
 ]

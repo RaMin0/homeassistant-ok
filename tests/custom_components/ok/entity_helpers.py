@@ -71,6 +71,25 @@ def make_price_response(now: datetime | None = None) -> dict[str, Any]:
     }
 
 
+def make_active_charging(
+    *,
+    charging_token: str | None = None,
+    scheduled_start: str | None = "2026-06-14T15:30:00Z",
+    scheduled_end: str | None = "2026-06-14T18:00:00Z",
+) -> dict[str, Any]:
+    charging_token = charging_token or "charging-token"
+    schedule: dict[str, Any] = {}
+    if scheduled_start is not None:
+        schedule["scheduledStart"] = scheduled_start
+    if scheduled_end is not None:
+        schedule["scheduledEnd"] = scheduled_end
+    return {
+        "chargingToken": charging_token,
+        "firestoreToken": charging_token,
+        "schedules": [schedule],
+    }
+
+
 class EntityTestClient:
     def __init__(self) -> None:
         self.start_calls: list[dict[str, Any]] = []
@@ -190,8 +209,6 @@ class EntityTestCoordinator:
                     "status": "Charging",
                     "powerInW": 3522,
                     "chargeInWh": 5835,
-                    "scheduledStart": "2026-06-14T15:30:00Z",
-                    "scheduledEnd": "2026-06-14T18:00:00Z",
                 },
                 name="documents/OK/Emsp/RemoteTransactions/charging-token",
             )

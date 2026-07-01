@@ -76,8 +76,8 @@ The repository includes a script blueprint for creating a reusable OK charging s
 `blueprints/script/ok/schedule_charging.yaml`.
 
 Use this blueprint when you want a dashboard button or script call that prompts for
-`scheduled_start` and `scheduled_end`, while keeping the OK connector status entity selected once in
-the script setup.
+`scheduled_start` and optional `scheduled_end`, while keeping the OK connector status entity
+selected once in the script setup.
 
 ### Import
 
@@ -100,8 +100,8 @@ GitHub/repository URLs, use the manual copy method; Home Assistant will load the
 ### Use
 
 Create a new script from the blueprint, select the OK connector status sensor once, then call that
-script from a dashboard button. Home Assistant prompts for `scheduled_start` and `scheduled_end`
-when the script runs.
+script from a dashboard button. Home Assistant prompts for `scheduled_start` and optional
+`scheduled_end` when the script runs.
 
 <p>
   <img src="media/schedule-charging-script-prompt.png" alt="Home Assistant script dialog prompting for OK charging schedule start and end times." width="560">
@@ -126,3 +126,5 @@ sequence:
       scheduled_start: "2026-06-25T11:00:00"
       scheduled_end: "2026-06-25T19:00:00"
 ```
+
+For a start-only schedule, omit `scheduled_end`.
