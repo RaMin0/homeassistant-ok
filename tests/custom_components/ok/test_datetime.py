@@ -81,8 +81,24 @@ async def _test_schedule_datetime_entities_expose_current_schedule(tmp_path: Pat
             name="documents/OK/Emsp/RemoteTransactions/charging-token",
         )
 
+        assert schedule_from.native_value == datetime(2026, 6, 14, 15, 30, tzinfo=UTC)
+        assert schedule_to.native_value == datetime(2026, 6, 14, 18, 0, tzinfo=UTC)
+
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-04T11:00:00Z",
+                "scheduledEnd": "2026-07-04T13:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+        coordinator.charging_schedule_event_at_map["charging-token"] = datetime(
+            2026, 6, 14, 12, 10, tzinfo=UTC
+        )
+
         assert schedule_from.native_value == datetime(2026, 7, 4, 11, 0, tzinfo=UTC)
-        assert schedule_to.native_value is None
+        assert schedule_to.native_value == datetime(2026, 7, 4, 13, 0, tzinfo=UTC)
+        coordinator.charging_schedule_event_at_map.clear()
 
         coordinator.active_charging = make_active_charging(
             scheduled_start="2026-07-04T11:00:00+00:00",
@@ -104,11 +120,12 @@ async def _test_schedule_datetime_entities_expose_current_schedule(tmp_path: Pat
             {
                 "status": "Scheduled",
                 "scheduledStart": "2026-07-04T11:00:00Z",
+                "scheduledEnd": "2026-07-04T13:00:00Z",
             },
             name="documents/OK/Emsp/RemoteTransactions/charging-token",
         )
 
-        assert schedule_from.native_value == datetime(2026, 7, 4, 11, 0, tzinfo=UTC)
+        assert schedule_from.native_value == datetime(2026, 6, 14, 15, 30, tzinfo=UTC)
         assert schedule_to.native_value is None
 
         coordinator.active_charging = {"chargingToken": "charging-token", "schedules": ["bad"]}

@@ -824,6 +824,7 @@ async def _test_coordinator_applies_realtime_schedule_update_without_status_chan
         assert coordinator.charging_status_for(active).fields["scheduledStart"] == (
             "2026-07-03T11:00:00Z"
         )
+        assert coordinator.charging_schedule_event_at(active) is not None
         assert coordinator._force_chargings_refresh is True
         assert coordinator._realtime_refresh_handle is not None
     finally:

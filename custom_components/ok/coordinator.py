@@ -56,6 +56,7 @@ _REALTIME_WATCH_RETRY_BASE_DELAY = 15
 _REALTIME_WATCH_RETRY_MAX_DELAY = 300
 _REALTIME_WATCH_ISSUE_ID = "realtime_updates_unavailable"
 _STALE_DEVICE_REMOVE_THRESHOLD = 3
+_CHARGING_SCHEDULE_FIELDS = ("scheduledStart", "scheduledEnd")
 type RefreshTrigger = Literal[
     "automatic",
     "force_refresh",
@@ -171,6 +172,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         self._force_full_refresh_pending = False
         self._last_refresh: dict[str, float] = {}
         self._last_refresh_wall: dict[str, datetime] = {}
+        self._current_chargings_snapshot_at: datetime | None = None
+        self._charging_schedule_event_at: dict[str, datetime] = {}
         self._endpoint_backoff_until: dict[str, float] = {}
         self._force_stations_refresh = False
         self._force_prices_refresh = False
@@ -340,6 +343,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         ):
             current_chargings = tuple(await self._call_api(self.client.get_chargings()))
             self._mark_refreshed(_SOURCE_CHARGINGS, now)
+            self._current_chargings_snapshot_at = self._last_refresh_wall.get(_SOURCE_CHARGINGS)
             self._force_chargings_refresh = False
             return current_chargings
         return cast(OkData, self.data).current_chargings
@@ -562,6 +566,17 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             "in_progress": self.refresh_in_progress,
         }
 
+    @property
+    def current_chargings_snapshot_at(self) -> datetime | None:
+        """Return when the current chargings snapshot was last updated."""
+        return self._current_chargings_snapshot_at
+
+    def charging_schedule_event_at(self, charging: CurrentCharging | None) -> datetime | None:
+        """Return when a realtime event last changed schedule fields for a charging."""
+        if charging is None or (token := _charging_status_token(charging)) is None:
+            return None
+        return self._charging_schedule_event_at.get(token)
+
     def charger_last_refresh(self, station_id: str) -> datetime | None:
         refresh_times = [
             refreshed_at
@@ -640,6 +655,11 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             token
             for charging in current_chargings
             if (token := _charging_status_token(charging)) is not None
+        }
+        self._charging_schedule_event_at = {
+            token: event_at
+            for token, event_at in self._charging_schedule_event_at.items()
+            if token in desired
         }
         return {
             token: document
@@ -822,6 +842,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                 charging_status=charging_status,
             )
         )
+        self._current_chargings_snapshot_at = datetime.now(UTC)
 
     def charging_status_for(self, charging: CurrentCharging | None) -> FirestoreDocument | None:
         data = cast(OkData | None, self.data)
@@ -1145,11 +1166,14 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         document = _newest_document(previous, document)
         if document is previous:
             return
+        schedule_fields_changed = _schedule_fields_changed(previous, document)
         charging_status[charging_token] = document
 
         if charging_status == self.data.charging_status:
             return
 
+        if schedule_fields_changed:
+            self._charging_schedule_event_at[charging_token] = datetime.now(UTC)
         charging = self._active_charging_for_token(charging_token)
         if charging is not None and (connector_key := _charging_connector_key(charging)):
             self._mark_refreshed(_session_status_source(*connector_key), monotonic())
@@ -1444,6 +1468,16 @@ def _should_refresh_chargings_after_charging_status_event(
     return status is not None and status.casefold() == "scheduled"
 
 
+def _schedule_fields_changed(
+    previous: FirestoreDocument | None,
+    current: FirestoreDocument,
+) -> bool:
+    return any(
+        (previous.fields.get(field) if previous is not None else None) != current.fields.get(field)
+        for field in _CHARGING_SCHEDULE_FIELDS
+    )
+
+
 def _document_status(document: FirestoreDocument | None) -> str | None:
     if document is None:
         return None
@@ -1517,7 +1551,7 @@ def _retry_after(error: OkRateLimitError) -> int | None:
     seconds = error.retry_after
     if seconds is None:
         return None
-    return min(max(seconds, 60), 3600)
+    return min(max(int(seconds), 60), 3600)
 
 
 def _parse_datetime(value: object) -> datetime | None:

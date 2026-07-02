@@ -179,6 +179,8 @@ class EntityTestCoordinator:
         self.force_full_refresh_count = 0
         self.refresh_in_progress = False
         self.last_refresh = datetime(2026, 6, 14, 12, 0, tzinfo=UTC)
+        self.current_chargings_snapshot_at = datetime(2026, 6, 14, 12, 5, tzinfo=UTC)
+        self.charging_schedule_event_at_map: dict[str, datetime] = {}
         self.poll_attributes = {
             "account_settings": "2026-06-14T11:50:00+00:00",
             "charger_overview": "2026-06-14T11:55:00+00:00",
@@ -273,6 +275,12 @@ class EntityTestCoordinator:
             return None
         token = charging.get("chargingToken") or charging.get("firestoreToken")
         return self.charging_status_documents.get(token)
+
+    def charging_schedule_event_at(self, charging: dict[str, Any] | None) -> datetime | None:
+        if charging is None:
+            return None
+        token = charging.get("chargingToken") or charging.get("firestoreToken")
+        return self.charging_schedule_event_at_map.get(token)
 
     def prices_for(self, station_id: str) -> dict[str, Any] | None:
         if station_id == self.connector_refs[0].station_id:

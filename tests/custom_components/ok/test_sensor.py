@@ -341,8 +341,26 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
         )
 
         assert (
-            OkSensor(coordinator, connector, _description("schedule_duration")).native_value is None
+            OkSensor(coordinator, connector, _description("schedule_duration")).native_value == 9000
         )
+
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-03T11:00:00Z",
+                "scheduledEnd": "2026-07-03T14:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+        coordinator.charging_schedule_event_at_map["charging-token"] = datetime(
+            2026, 6, 14, 12, 10, tzinfo=UTC
+        )
+
+        assert (
+            OkSensor(coordinator, connector, _description("schedule_duration")).native_value
+            == 10800
+        )
+        coordinator.charging_schedule_event_at_map.clear()
 
         coordinator.active_charging = None
         inactive_power = OkSensor(coordinator, connector, _description("connector_session_power"))

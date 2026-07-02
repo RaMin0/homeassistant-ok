@@ -88,8 +88,11 @@ OK may report a schedule with only a start time. In that case, `schedule_from` s
 `schedule_to` is empty, and `schedule_duration` is unavailable until an end time exists.
 After a successful schedule command, the integration records the submitted start/end values locally
 so Home Assistant can show the requested schedule immediately. OK remains the source of truth: the
-next successful Firestore session event or current-chargings refresh replaces that local value. If
-OK returns no active schedule for the connector, the schedule datetime entities become empty again.
+next successful current-chargings refresh replaces that local value. The integration uses
+charging-session Firestore watcher events that changed schedule fields for realtime schedule
+changes, but ignores older Firestore schedule fields when current-chargings has already provided a
+newer snapshot. If OK returns no active schedule for the connector, the schedule datetime entities
+become empty again.
 
 - Select the OK connector status sensor for the correct connector.
 - Confirm the OK app shows an active charging session or schedule.
