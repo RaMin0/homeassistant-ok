@@ -193,6 +193,14 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
             == "token"
         )
         assert (
+            client.schedule_charging(
+                charging_station_id="station-id",
+                connector_id=1,
+                scheduled_start="2025-01-01T03:00:00+00:00",
+            )["chargingToken"]
+            == "token"
+        )
+        assert (
             client.update_charging_schedule(
                 "token",
                 charging_station_id="OK-CHARGER-001",
@@ -215,6 +223,16 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
         "POST",
         "/api/v2/HomeChargingStation/restart",
         {"chargingStationIdentifier": "station-id"},
+    ) in seen
+    assert (
+        "POST",
+        "/api/v2/HomeChargingStation/start",
+        {
+            "friendlyDeviceId": "FRIEND",
+            "chargingStationId": "station-id",
+            "connectorId": 1,
+            "scheduledStart": "2025-01-01T03:00:00+00:00",
+        },
     ) in seen
 
 

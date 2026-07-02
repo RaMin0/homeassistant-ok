@@ -32,6 +32,7 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                 }
             },
         ]
+        start_bodies: list[dict[str, object]] = []
 
         async def handler(request: httpx.Request) -> httpx.Response:
             path = request.url.path
@@ -79,6 +80,7 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                     },
                 )
             if path.endswith("/start"):
+                start_bodies.append(json.loads(request.content))
                 return httpx.Response(200, json={"result": "Success", "chargingToken": "token"})
             if path.endswith("/schedule-charging"):
                 body = json.loads(request.content)
@@ -140,6 +142,11 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                     scheduled_start="2025-01-01T01:00:00+00:00",
                     scheduled_end="2025-01-01T02:00:00+00:00",
                 )
+                scheduled_without_end = await client.schedule_charging(
+                    charging_station_id="station-id",
+                    connector_id=1,
+                    scheduled_start="2025-01-01T03:00:00+00:00",
+                )
                 updated = await client.update_charging_schedule(
                     "token",
                     charging_station_id="OK-CHARGER-001",
@@ -170,6 +177,13 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
         assert chargings[0]["schedules"][0]["scheduledEnd"] is None
         assert started["result"] == "Success"
         assert scheduled["chargingToken"] == "token"
+        assert scheduled_without_end["chargingToken"] == "token"
+        assert {
+            "friendlyDeviceId": "FRIEND",
+            "chargingStationId": "station-id",
+            "connectorId": 1,
+            "scheduledStart": "2025-01-01T03:00:00+00:00",
+        } in start_bodies
         assert updated["chargingToken"] == "token"
         assert updated["firestoreToken"] == "token"
         assert cancelled == {}

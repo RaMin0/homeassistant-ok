@@ -499,15 +499,16 @@ class OkApiClient(_BaseOkApiClient):
         charging_station_id: str,
         connector_id: int,
         scheduled_start: datetime | str,
-        scheduled_end: datetime | str,
+        scheduled_end: datetime | str | None = None,
     ) -> ChargingCommandResponse:
         payload: JsonObject = {
             "friendlyDeviceId": friendly_device_id or self._require_device_friendly_id(),
             "chargingStationId": charging_station_id,
             "connectorId": connector_id,
             "scheduledStart": self._format_datetime(scheduled_start),
-            "scheduledEnd": self._format_datetime(scheduled_end),
         }
+        if scheduled_end is not None:
+            payload["scheduledEnd"] = self._format_datetime(scheduled_end)
         return cast(
             ChargingCommandResponse,
             self._expect_json_object(
@@ -870,15 +871,16 @@ class AsyncOkApiClient(_BaseOkApiClient):
         charging_station_id: str,
         connector_id: int,
         scheduled_start: datetime | str,
-        scheduled_end: datetime | str,
+        scheduled_end: datetime | str | None = None,
     ) -> ChargingCommandResponse:
         payload: JsonObject = {
             "friendlyDeviceId": friendly_device_id or self._require_device_friendly_id(),
             "chargingStationId": charging_station_id,
             "connectorId": connector_id,
             "scheduledStart": self._format_datetime(scheduled_start),
-            "scheduledEnd": self._format_datetime(scheduled_end),
         }
+        if scheduled_end is not None:
+            payload["scheduledEnd"] = self._format_datetime(scheduled_end)
         return cast(
             ChargingCommandResponse,
             self._expect_json_object(
