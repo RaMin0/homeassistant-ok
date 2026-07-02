@@ -95,6 +95,7 @@ class FakeServiceClient:
 class FakeCoordinator:
     def __init__(self) -> None:
         self.refresh_count = 0
+        self.schedule_window_calls: list[dict[str, Any]] = []
         self.connector_refs = (SimpleNamespace(station_id="OK-CHARGER-001", connector_id=1),)
         self.active_charging: dict[str, Any] | None = {
             "chargingToken": "charging-token",
@@ -118,6 +119,22 @@ class FakeCoordinator:
         if station_id == "OK-CHARGER-001" and connector_id == 1:
             return self.active_charging
         return None
+
+    def record_schedule_window(
+        self,
+        station_id: str,
+        connector_id: int,
+        scheduled_start: str,
+        scheduled_end: str | None,
+    ) -> None:
+        self.schedule_window_calls.append(
+            {
+                "station_id": station_id,
+                "connector_id": connector_id,
+                "scheduled_start": scheduled_start,
+                "scheduled_end": scheduled_end,
+            }
+        )
 
 
 class FakeEntry:
@@ -191,6 +208,14 @@ async def _test_schedule_charging_service_adds_local_timezone_to_naive_datetimes
             }
         ]
         assert coordinator.refresh_count == 1
+        assert coordinator.schedule_window_calls == [
+            {
+                "station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": "2026-06-14T18:00:00+02:00",
+            }
+        ]
     finally:
         await hass.async_stop()
 
@@ -288,6 +313,14 @@ async def _test_schedule_service_allows_start_only_existing_schedule(
         ]
         assert client.schedule_calls == []
         assert coordinator.refresh_count == 1
+        assert coordinator.schedule_window_calls == [
+            {
+                "station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": None,
+            }
+        ]
     finally:
         await hass.async_stop()
 
@@ -332,20 +365,28 @@ async def _test_schedule_service_falls_back_to_start_when_no_active_token(
         ]
         assert client.update_calls == []
         assert coordinator.refresh_count == 1
+        assert coordinator.schedule_window_calls == [
+            {
+                "station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": "2026-06-14T18:00:00+02:00",
+            }
+        ]
     finally:
         await hass.async_stop()
 
 
-def test_schedule_service_rejects_start_only_without_active_token(
+def test_schedule_service_allows_start_only_without_active_token(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
     asyncio.run(
-        _test_schedule_service_rejects_start_only_without_active_token(tmp_path, monkeypatch)
+        _test_schedule_service_allows_start_only_without_active_token(tmp_path, monkeypatch)
     )
 
 
-async def _test_schedule_service_rejects_start_only_without_active_token(
+async def _test_schedule_service_allows_start_only_without_active_token(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -355,21 +396,85 @@ async def _test_schedule_service_rejects_start_only_without_active_token(
         coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
         coordinator.active_charging = None
 
-        with pytest.raises(ServiceValidationError) as error:
-            await hass.services.async_call(
-                DOMAIN,
-                SERVICE_SCHEDULE_CHARGING,
-                {
-                    ATTR_ENTITY_ID: "sensor.charger_connector_status",
-                    ATTR_SCHEDULED_START: "2026-06-14T15:30:00",
-                },
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SCHEDULE_CHARGING,
+            {
+                ATTR_ENTITY_ID: "sensor.charger_connector_status",
+                ATTR_SCHEDULED_START: "2026-06-14T15:30:00",
+            },
+            blocking=True,
+        )
 
-        assert error.value.translation_key == "active_charging_not_found"
-        assert client.schedule_calls == []
+        assert client.schedule_calls == [
+            {
+                "charging_station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": None,
+            }
+        ]
         assert client.update_calls == []
-        assert coordinator.refresh_count == 0
+        assert coordinator.refresh_count == 1
+        assert coordinator.schedule_window_calls == [
+            {
+                "station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": None,
+            }
+        ]
+    finally:
+        await hass.async_stop()
+
+
+def test_update_schedule_service_falls_back_without_active_token(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asyncio.run(
+        _test_update_schedule_service_falls_back_without_active_token(tmp_path, monkeypatch)
+    )
+
+
+async def _test_update_schedule_service_falls_back_without_active_token(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeServiceClient()
+    try:
+        coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
+        coordinator.active_charging = None
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_UPDATE_CHARGING_SCHEDULE,
+            {
+                ATTR_ENTITY_ID: "sensor.charger_connector_status",
+                ATTR_SCHEDULED_START: "2026-06-14T15:30:00",
+            },
+            blocking=True,
+        )
+
+        assert client.schedule_calls == [
+            {
+                "charging_station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": None,
+            }
+        ]
+        assert client.update_calls == []
+        assert coordinator.refresh_count == 1
+        assert coordinator.schedule_window_calls == [
+            {
+                "station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": None,
+            }
+        ]
     finally:
         await hass.async_stop()
 

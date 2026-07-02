@@ -239,7 +239,6 @@ def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiCli
 def _register_services(hass: HomeAssistant) -> None:
     from homeassistant.components.sensor import SensorDeviceClass
     from homeassistant.const import Platform
-    from homeassistant.exceptions import ServiceValidationError
     from homeassistant.helpers import service as service_helper
 
     from .action import (
@@ -289,11 +288,6 @@ def _register_services(hass: HomeAssistant) -> None:
                 entry=target.entry,
             )
         else:
-            if scheduled_end is None:
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="active_charging_not_found",
-                )
             response = await async_call_ok_api(
                 target.runtime.client.schedule_charging(
                     charging_station_id=target.station_id,
@@ -306,23 +300,47 @@ def _register_services(hass: HomeAssistant) -> None:
             )
         validate_command_response(response)
         await target.runtime.coordinator.async_request_operational_refresh()
+        target.runtime.coordinator.record_schedule_window(
+            target.station_id,
+            target.connector_id,
+            scheduled_start,
+            scheduled_end,
+        )
 
     async def update_charging_schedule(entity: Any, call: ServiceCall) -> None:
         target = _target_from_entity(entity)
-        token = _active_charging_token(target)
+        token = _optional_active_charging_token(target)
         scheduled_start, scheduled_end = _schedule_window_from_call(hass, call)
-        response = await async_call_ok_api(
-            target.runtime.client.update_charging_schedule(
-                token,
-                charging_station_id=target.station_id,
-                scheduled_start=scheduled_start,
-                scheduled_end=scheduled_end,
-            ),
-            hass=hass,
-            entry=target.entry,
-        )
+        if token is not None:
+            response = await async_call_ok_api(
+                target.runtime.client.update_charging_schedule(
+                    token,
+                    charging_station_id=target.station_id,
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                ),
+                hass=hass,
+                entry=target.entry,
+            )
+        else:
+            response = await async_call_ok_api(
+                target.runtime.client.schedule_charging(
+                    charging_station_id=target.station_id,
+                    connector_id=target.connector_id,
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                ),
+                hass=hass,
+                entry=target.entry,
+            )
         validate_command_response(response)
         await target.runtime.coordinator.async_request_operational_refresh()
+        target.runtime.coordinator.record_schedule_window(
+            target.station_id,
+            target.connector_id,
+            scheduled_start,
+            scheduled_end,
+        )
 
     async def cancel_charging_schedule(entity: Any, call: ServiceCall) -> None:
         target = _target_from_entity(entity)

@@ -97,12 +97,18 @@ class EntityTestClient:
         self.cancel_calls: list[str] = []
         self.restart_calls: list[str] = []
         self.auto_start_calls: list[dict[str, Any]] = []
+        self.schedule_calls: list[dict[str, Any]] = []
         self.update_calls: list[dict[str, Any]] = []
         self.error: Exception | None = None
 
     async def start_charging(self, **kwargs: Any) -> dict[str, str]:
         self._raise_if_error()
         self.start_calls.append(kwargs)
+        return {"result": "Success"}
+
+    async def schedule_charging(self, **kwargs: Any) -> dict[str, str]:
+        self._raise_if_error()
+        self.schedule_calls.append(kwargs)
         return {"result": "Success"}
 
     async def stop_charging(self, charging_token: str) -> dict[str, Any]:
@@ -240,6 +246,24 @@ class EntityTestCoordinator:
         ):
             return self.active_charging
         return None
+
+    def record_schedule_window(
+        self,
+        station_id: str,
+        connector_id: int,
+        scheduled_start: str,
+        scheduled_end: str | None,
+    ) -> None:
+        connector = self.connector_refs[0]
+        if station_id != connector.station_id or connector_id != connector.connector_id:
+            return
+        schedule: dict[str, Any] = {"scheduledStart": scheduled_start}
+        if scheduled_end is not None:
+            schedule["scheduledEnd"] = scheduled_end
+        self.active_charging = {
+            **(self.active_charging or {}),
+            "schedules": [schedule],
+        }
 
     def station_status_for(self, station_id: str, connector_id: int) -> FirestoreDocument | None:
         return self.station_status_documents.get((station_id, connector_id))

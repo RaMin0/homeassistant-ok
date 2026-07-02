@@ -7,6 +7,7 @@ from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
+import custom_components.ok.coordinator as coordinator_module
 import pytest
 from custom_components.ok.api import (
     FirestoreDocument,
@@ -294,6 +295,46 @@ async def _test_coordinator_uses_firestore_token_for_status_paths(tmp_path: Path
         await hass.async_stop()
 
 
+def test_coordinator_records_schedule_until_next_chargings_refresh(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_records_schedule_until_next_chargings_refresh(tmp_path))
+
+
+async def _test_coordinator_records_schedule_until_next_chargings_refresh(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        coordinator.record_schedule_window(
+            "OK-CHARGER-001",
+            1,
+            "2026-07-03T11:00:00+00:00",
+            None,
+        )
+
+        active = coordinator.active_charging_for("OK-CHARGER-001", 1)
+        assert active is not None
+        assert active["schedules"] == [{"scheduledStart": "2026-07-03T11:00:00+00:00"}]
+        charging_status = coordinator.charging_status_for(active)
+        assert charging_status is not None
+        assert charging_status.fields["status"] == "Scheduled"
+        assert charging_status.fields["scheduledStart"] == "2026-07-03T11:00:00+00:00"
+        assert "scheduledEnd" not in charging_status.fields
+
+        client.current_chargings_response = []
+        await coordinator.async_request_operational_refresh()
+
+        assert coordinator.active_charging_for("OK-CHARGER-001", 1) is None
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
 def test_coordinator_skips_malformed_connectors(tmp_path: Path) -> None:
     asyncio.run(_test_coordinator_skips_malformed_connectors(tmp_path))
 
@@ -469,6 +510,42 @@ async def _test_coordinator_skips_receipts_when_option_is_disabled(tmp_path: Pat
         assert coordinator.data is not None
         assert coordinator.data.receipts == ()
         assert coordinator.last_receipt_for("OK-CHARGER-001") is None
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_does_not_fail_when_optional_receipts_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asyncio.run(
+        _test_coordinator_does_not_fail_when_optional_receipts_timeout(tmp_path, monkeypatch)
+    )
+
+
+async def _test_coordinator_does_not_fail_when_optional_receipts_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SlowReceiptsClient(FakeOkClient):
+        async def get_charging_receipts(self) -> list[dict[str, Any]]:
+            self.receipts_calls += 1
+            await asyncio.sleep(60)
+            return []
+
+    hass = HomeAssistant(str(tmp_path))
+    client = SlowReceiptsClient()
+    entry = _entry()
+    monkeypatch.setattr(coordinator_module, "_OPTIONAL_API_TIMEOUT", 0.01)
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.data is not None
+        assert coordinator.data.receipts == ()
+        assert client.receipts_calls == 1
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()
@@ -702,6 +779,56 @@ async def _test_coordinator_applies_realtime_firestore_events(tmp_path: Path) ->
 
 def test_coordinator_does_not_poll_realtime_status_after_snapshot_seed(tmp_path: Path) -> None:
     asyncio.run(_test_coordinator_does_not_poll_realtime_status_after_snapshot_seed(tmp_path))
+
+
+def test_coordinator_applies_realtime_schedule_update_without_status_change(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_test_coordinator_applies_realtime_schedule_update_without_status_change(tmp_path))
+
+
+async def _test_coordinator_applies_realtime_schedule_update_without_status_change(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        for scheduled_start, update_time in (
+            ("2026-07-03T10:00:00Z", "2026-07-02T10:00:00Z"),
+            ("2026-07-03T11:00:00Z", "2026-07-02T10:01:00Z"),
+        ):
+            client.charging_watch_callbacks["charging-token-001"](
+                FirestoreWatchEvent(
+                    document=FirestoreDocument(
+                        name=("documents/OK/Emsp/RemoteTransactions/charging-token-001"),
+                        fields={
+                            "status": "Scheduled",
+                            "statusEventTime": "1782999999000000000",
+                            "scheduledStart": scheduled_start,
+                        },
+                        create_time="2025-06-04T23:04:23.378539Z",
+                        update_time=update_time,
+                        raw={},
+                    ),
+                    exists=True,
+                )
+            )
+            await hass.async_block_till_done()
+
+        active = coordinator.active_charging_for("OK-CHARGER-001", 1)
+        assert coordinator.charging_status_for(active).fields["scheduledStart"] == (
+            "2026-07-03T11:00:00Z"
+        )
+        assert coordinator._force_chargings_refresh is True
+        assert coordinator._realtime_refresh_handle is not None
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
 
 
 async def _test_coordinator_does_not_poll_realtime_status_after_snapshot_seed(

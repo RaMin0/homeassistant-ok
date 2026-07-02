@@ -109,23 +109,31 @@ class OkScheduleDateTime(OkEntity, DateTimeEntity):  # type: ignore[misc]
         token = active_charging_token(
             self.coordinator.active_charging_for(self.station_id, self.connector_id)
         )
-        if token is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="active_charging_not_found",
-            )
-
-        await async_call_ok_api(
-            self.coordinator.client.update_charging_schedule(
+        scheduled_start_value = scheduled_start.isoformat()
+        scheduled_end_value = scheduled_end.isoformat() if scheduled_end is not None else None
+        if token is not None:
+            api_call = self.coordinator.client.update_charging_schedule(
                 token,
                 charging_station_id=self.station_id,
-                scheduled_start=scheduled_start.isoformat(),
-                scheduled_end=scheduled_end.isoformat() if scheduled_end is not None else None,
-            ),
-            hass=self.hass,
-            entry=self.coordinator.entry,
-        )
+                scheduled_start=scheduled_start_value,
+                scheduled_end=scheduled_end_value,
+            )
+        else:
+            api_call = self.coordinator.client.schedule_charging(
+                charging_station_id=self.station_id,
+                connector_id=self.connector_id,
+                scheduled_start=scheduled_start_value,
+                scheduled_end=scheduled_end_value,
+            )
+
+        await async_call_ok_api(api_call, hass=self.hass, entry=self.coordinator.entry)
         await self.coordinator.async_request_operational_refresh()
+        self.coordinator.record_schedule_window(
+            self.station_id,
+            self.connector_id,
+            scheduled_start_value,
+            scheduled_end_value,
+        )
 
 
 def _unique_id(connector: OkConnectorRef, key: str) -> str:

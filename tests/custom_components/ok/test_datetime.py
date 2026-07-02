@@ -20,6 +20,7 @@ from .entity_helpers import (
     EntityTestCoordinator,
     make_active_charging,
     make_connector,
+    make_document,
 )
 
 
@@ -59,7 +60,62 @@ async def _test_schedule_datetime_entities_expose_current_schedule(tmp_path: Pat
 
         assert schedule_from.native_value is None
 
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-03T11:00:00Z",
+                "scheduledEnd": "2026-07-03T13:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert schedule_from.native_value == datetime(2026, 7, 3, 11, 0, tzinfo=UTC)
+        assert schedule_to.native_value == datetime(2026, 7, 3, 13, 0, tzinfo=UTC)
+
+        coordinator.active_charging = make_active_charging()
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-04T11:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert schedule_from.native_value == datetime(2026, 7, 4, 11, 0, tzinfo=UTC)
+        assert schedule_to.native_value is None
+
+        coordinator.active_charging = make_active_charging(
+            scheduled_start="2026-07-04T11:00:00+00:00",
+            scheduled_end="2026-07-04T13:00:00+00:00",
+        )
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-04T11:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert schedule_from.native_value == datetime(2026, 7, 4, 11, 0, tzinfo=UTC)
+        assert schedule_to.native_value == datetime(2026, 7, 4, 13, 0, tzinfo=UTC)
+
+        coordinator.active_charging = make_active_charging(scheduled_end=None)
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-04T11:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert schedule_from.native_value == datetime(2026, 7, 4, 11, 0, tzinfo=UTC)
+        assert schedule_to.native_value is None
+
         coordinator.active_charging = {"chargingToken": "charging-token", "schedules": ["bad"]}
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {"status": "Charging"},
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
 
         assert schedule_from.native_value is None
 
@@ -125,11 +181,13 @@ async def _test_schedule_datetime_entity_updates_schedule(tmp_path: Path) -> Non
             {
                 "charging_token": "charging-token",
                 "charging_station_id": "OK-CHARGER-001",
-                "scheduled_start": "2026-06-14T15:30:00+00:00",
+                "scheduled_start": "2026-06-14T16:00:00+00:00",
                 "scheduled_end": "2026-06-14T19:00:00+00:00",
             },
         ]
         assert coordinator.refresh_count == 2
+        assert schedule_from.native_value == datetime(2026, 6, 14, 16, 0, tzinfo=UTC)
+        assert schedule_to.native_value == datetime(2026, 6, 14, 19, 0, tzinfo=UTC)
     finally:
         await hass.async_stop()
 
@@ -185,6 +243,7 @@ async def _test_schedule_datetime_entity_updates_start_only_schedule(tmp_path: P
                 "scheduled_end": None,
             }
         ]
+        assert schedule_from.native_value == datetime(2026, 6, 14, 16, 0, tzinfo=UTC)
     finally:
         await hass.async_stop()
 
@@ -214,15 +273,16 @@ async def _test_schedule_datetime_entity_can_complete_start_only_schedule(tmp_pa
                 "scheduled_end": "2026-06-14T19:00:00+00:00",
             }
         ]
+        assert schedule_to.native_value == datetime(2026, 6, 14, 19, 0, tzinfo=UTC)
     finally:
         await hass.async_stop()
 
 
-def test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path: Path) -> None:
-    asyncio.run(_test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path))
+def test_schedule_datetime_entity_falls_back_without_token(tmp_path: Path) -> None:
+    asyncio.run(_test_schedule_datetime_entity_falls_back_without_token(tmp_path))
 
 
-async def _test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path: Path) -> None:
+async def _test_schedule_datetime_entity_falls_back_without_token(tmp_path: Path) -> None:
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
@@ -238,11 +298,18 @@ async def _test_schedule_datetime_entity_rejects_schedule_without_token(tmp_path
         schedule_from = OkScheduleDateTime(coordinator, connector, _description("schedule_from"))
         schedule_from.hass = hass
 
-        with pytest.raises(ServiceValidationError) as error:
-            await schedule_from.async_set_value(datetime(2026, 6, 14, 16, 0, tzinfo=UTC))
+        await schedule_from.async_set_value(datetime(2026, 6, 14, 16, 0, tzinfo=UTC))
 
-        assert error.value.translation_key == "active_charging_not_found"
         assert coordinator.client.update_calls == []
+        assert coordinator.client.schedule_calls == [
+            {
+                "charging_station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T16:00:00+00:00",
+                "scheduled_end": "2026-06-14T18:00:00+00:00",
+            }
+        ]
+        assert coordinator.refresh_count == 1
     finally:
         await hass.async_stop()
 

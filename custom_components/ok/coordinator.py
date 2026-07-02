@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from asyncio import CancelledError, Lock, Task, TimerHandle, current_task, gather
+from asyncio import CancelledError, Lock, Task, TimerHandle, current_task, gather, timeout
 from collections import deque
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
@@ -20,6 +20,7 @@ from .api import (
     AsyncOkApiClient,
     ChargingLocation,
     ChargingReceipt,
+    ChargingSchedule,
     CurrentCharging,
     DeviceSettingsResponse,
     FirestoreDocument,
@@ -48,6 +49,7 @@ _PRICE_REFRESH_INTERVAL = timedelta(minutes=30)
 _ACTIVE_CHARGINGS_REFRESH_INTERVAL = timedelta(seconds=60)
 _IDLE_CHARGINGS_REFRESH_INTERVAL = timedelta(minutes=5)
 _RECEIPTS_REFRESH_INTERVAL = timedelta(hours=12)
+_OPTIONAL_API_TIMEOUT = 7
 _RATE_LIMIT_BACKOFF_FALLBACK = 300
 _REALTIME_REFRESH_DELAY = 5
 _REALTIME_WATCH_RETRY_BASE_DELAY = 15
@@ -411,9 +413,16 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         if self._is_backing_off(source, now):
             return None
         try:
-            return await api_call()
+            async with timeout(_OPTIONAL_API_TIMEOUT):
+                return await api_call()
         except (OkAuthenticationError, OkPermissionDeniedError) as err:
             raise ConfigEntryAuthFailed(str(err)) from err
+        except TimeoutError:
+            _LOGGER.debug(
+                "OK optional API endpoint %s timed out after %s seconds",
+                source,
+                _OPTIONAL_API_TIMEOUT,
+            )
         except OkRateLimitError as err:
             retry_at = self._record_rate_limit_backoff(source, err, now)
             _LOGGER.info(
@@ -740,6 +749,79 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             ):
                 return charging
         return None
+
+    def record_schedule_window(
+        self,
+        station_id: str,
+        connector_id: int,
+        scheduled_start: str,
+        scheduled_end: str | None,
+    ) -> None:
+        """Record a successful schedule command until OK's next schedule refresh."""
+        if self.data is None:
+            return
+
+        schedule: ChargingSchedule = {"scheduledStart": scheduled_start}
+        if scheduled_end is not None:
+            schedule["scheduledEnd"] = scheduled_end
+
+        matched = False
+        matched_charging: CurrentCharging | None = None
+        current_chargings: list[CurrentCharging] = []
+        for charging in self.data.current_chargings:
+            if (
+                charging.get("csIdentifier") == station_id
+                and charging.get("connectorId") == connector_id
+            ):
+                matched_charging = cast(CurrentCharging, {**charging, "schedules": [schedule]})
+                current_chargings.append(matched_charging)
+                matched = True
+            else:
+                current_chargings.append(charging)
+
+        if not matched:
+            matched_charging = {
+                "csIdentifier": station_id,
+                "connectorId": connector_id,
+                "schedules": [schedule],
+            }
+            current_chargings.append(matched_charging)
+
+        charging_status = self.data.charging_status
+        if (
+            matched_charging is not None
+            and (token := _charging_status_token(matched_charging)) is not None
+        ):
+            status_document = self.data.charging_status.get(token)
+            status_fields = dict(status_document.fields) if status_document is not None else {}
+            status_fields["status"] = "Scheduled"
+            status_fields["scheduledStart"] = scheduled_start
+            if scheduled_end is None:
+                status_fields.pop("scheduledEnd", None)
+            else:
+                status_fields["scheduledEnd"] = scheduled_end
+            charging_status = {
+                **self.data.charging_status,
+                token: (
+                    replace(status_document, fields=status_fields)
+                    if status_document is not None
+                    else FirestoreDocument(
+                        name=f"documents/OK/Emsp/RemoteTransactions/{token}",
+                        fields=status_fields,
+                        create_time=None,
+                        update_time=None,
+                        raw={},
+                    )
+                ),
+            }
+
+        self.async_set_updated_data(
+            replace(
+                self.data,
+                current_chargings=tuple(current_chargings),
+                charging_status=charging_status,
+            )
+        )
 
     def charging_status_for(self, charging: CurrentCharging | None) -> FirestoreDocument | None:
         data = cast(OkData | None, self.data)
@@ -1072,7 +1154,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         if charging is not None and (connector_key := _charging_connector_key(charging)):
             self._mark_refreshed(_session_status_source(*connector_key), monotonic())
         self.async_set_updated_data(replace(self.data, charging_status=charging_status))
-        if _status_changed(previous, document):
+        if _should_refresh_chargings_after_charging_status_event(previous, document):
             self._force_chargings_refresh = True
             self._schedule_refresh_after_realtime_event()
 
@@ -1352,6 +1434,16 @@ def _status_changed(
     return _document_status(previous) != _document_status(current)
 
 
+def _should_refresh_chargings_after_charging_status_event(
+    previous: FirestoreDocument | None,
+    current: FirestoreDocument,
+) -> bool:
+    if _status_changed(previous, current):
+        return True
+    status = _document_status(current)
+    return status is not None and status.casefold() == "scheduled"
+
+
 def _document_status(document: FirestoreDocument | None) -> str | None:
     if document is None:
         return None
@@ -1365,7 +1457,13 @@ def _newest_document(
 ) -> FirestoreDocument:
     if current is None:
         return candidate
-    if _document_version(candidate) > _document_version(current):
+    candidate_version = _document_version(candidate)
+    current_version = _document_version(current)
+    if candidate_version > current_version:
+        return candidate
+    if candidate_version == current_version and _document_update_time(candidate) > (
+        _document_update_time(current)
+    ):
         return candidate
     return current
 
@@ -1384,6 +1482,10 @@ def _document_version(document: FirestoreDocument) -> tuple[int, float]:
     if values:
         return (1, max(values))
     return (0, 0)
+
+
+def _document_update_time(document: FirestoreDocument) -> float:
+    return _timestamp_value(document.update_time) or 0
 
 
 def _nanoseconds_field(value: object) -> int | None:

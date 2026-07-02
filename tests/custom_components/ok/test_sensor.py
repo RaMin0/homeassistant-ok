@@ -274,7 +274,10 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
     hass = HomeAssistant(str(tmp_path))
     try:
         coordinator = EntityTestCoordinator(hass)
-        coordinator.active_charging = make_active_charging()
+        coordinator.active_charging = make_active_charging(
+            scheduled_start="2026-07-03T10:30:00Z",
+            scheduled_end="2026-07-03T13:00:00Z",
+        )
         connector = coordinator.connector_refs[0]
 
         power = OkSensor(coordinator, connector, _description("connector_session_power"))
@@ -294,6 +297,52 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
         assert values["schedule_duration"] == 9000
         assert _description("schedule_duration").native_unit_of_measurement is UnitOfTime.SECONDS
         assert power.extra_state_attributes == {}
+
+        coordinator.active_charging = {"chargingToken": "charging-token", "schedules": []}
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-03T11:00:00Z",
+                "scheduledEnd": "2026-07-03T13:30:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert (
+            OkSensor(coordinator, connector, _description("schedule_duration")).native_value == 9000
+        )
+
+        coordinator.active_charging = make_active_charging(
+            scheduled_start="2026-07-03T11:00:00+00:00",
+            scheduled_end="2026-07-03T13:00:00Z",
+        )
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-03T11:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert (
+            OkSensor(coordinator, connector, _description("schedule_duration")).native_value == 7200
+        )
+
+        coordinator.active_charging = make_active_charging(
+            scheduled_start="2026-07-03T10:30:00Z",
+            scheduled_end="2026-07-03T13:00:00Z",
+        )
+        coordinator.charging_status_documents["charging-token"] = make_document(
+            {
+                "status": "Scheduled",
+                "scheduledStart": "2026-07-03T11:00:00Z",
+            },
+            name="documents/OK/Emsp/RemoteTransactions/charging-token",
+        )
+
+        assert (
+            OkSensor(coordinator, connector, _description("schedule_duration")).native_value is None
+        )
 
         coordinator.active_charging = None
         inactive_power = OkSensor(coordinator, connector, _description("connector_session_power"))
