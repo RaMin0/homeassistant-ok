@@ -45,7 +45,8 @@ watcher failures retry with bounded backoff.
 Realtime updates are used for data that OK publishes through Firestore documents:
 
 - Connector status, such as available, preparing, charging, suspended, or faulted.
-- Charging-session status, including the current session state used by connector session entities.
+- Charging-session status, including the current session state, session power/energy, and schedule
+  values when OK publishes them for the active session.
 
 When **Realtime updates** is enabled, the integration starts Firestore document watches for those
 sources. Firestore's Python watcher is synchronous, so the integration runs watch setup and cleanup
@@ -56,7 +57,7 @@ Polling is still used for data that is not fully covered by those realtime docum
 
 - Account and charger discovery.
 - Charger metadata.
-- Current charging sessions and schedule start/end values.
+- Current charging sessions and schedule fallback data.
 - Energy prices.
 - Receipt and last-session data.
 - Watcher recovery and HTTP snapshots after startup, retries, or force refresh.
@@ -76,13 +77,19 @@ If updates look delayed:
 ## Schedule, Stop, Update, Or Cancel Fails
 
 Creating a schedule targets the selected connector and needs a valid start time. The scheduled end
-is optional when OK already reports an active charging session or schedule for that connector; if an
-end is supplied, the integration validates that it is after scheduled start. In normal use, choose a
-future schedule because OK may reject past schedules. Updating, stopping, canceling, and editing the
-schedule datetime entities require OK to report an active charging session or schedule for that
-connector.
+is optional; if an end is supplied, the integration validates that it is after scheduled start. In
+normal use, choose a future schedule because OK may reject past schedules. Updating, stopping,
+canceling, and editing the schedule datetime entities normally use OK's active schedule token when
+one is available. If no token is available, schedule creation/update falls back to connector-based
+scheduling. Stopping and canceling still require OK to report an active charging session or schedule
+for that connector.
+
 OK may report a schedule with only a start time. In that case, `schedule_from` shows the start,
 `schedule_to` is empty, and `schedule_duration` is unavailable until an end time exists.
+After a successful schedule command, the integration records the submitted start/end values locally
+so Home Assistant can show the requested schedule immediately. OK remains the source of truth: the
+next successful Firestore session event or current-chargings refresh replaces that local value. If
+OK returns no active schedule for the connector, the schedule datetime entities become empty again.
 
 - Select the OK connector status sensor for the correct connector.
 - Confirm the OK app shows an active charging session or schedule.

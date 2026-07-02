@@ -64,8 +64,8 @@ The coordinator combines REST-backed OK app endpoints with Firestore realtime do
 - Quick receipt data is fetched for known sessions after they finish.
 - Connector status and charging-session status prefer Firestore realtime watches, with HTTP
   snapshot fallback when watches are unavailable, failed, missing, or force refresh is requested.
-  Schedule start/end values come from the current-chargings REST response, not Firestore status
-  documents.
+  Schedule start/end values prefer the active charging-session Firestore document, with the
+  current-chargings REST schedule list used as a fallback.
 
 ## Realtime Firestore Watches
 
