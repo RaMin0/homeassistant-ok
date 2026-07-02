@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.4.3 (2026-07-02)
+
+### Bug Fixes
+
+- Preserve realtime schedule freshness
+  ([`d88143c`](https://github.com/RaMin0/homeassistant-ok/commit/d88143cf1d57119911ce5ec52a456f63179c0abc))
+
+- Stabilize charger schedule state
+  ([`e6325fd`](https://github.com/RaMin0/homeassistant-ok/commit/e6325fd45b0cf4511c2adf43d08b49125aaec83d))
+
+- **api**: Support current charging schedule payloads
+  ([`5ae7b91`](https://github.com/RaMin0/homeassistant-ok/commit/5ae7b91b6d2b7ad0647314db89f296ec4e751de5))
+
+### Documentation
+
+- Document OK schedule behavior
+  ([`f95be0c`](https://github.com/RaMin0/homeassistant-ok/commit/f95be0c27ae7f3728e33f8f1a86bb4ef359e9fdd))
+
+
 ## v0.4.2 (2026-07-01)
 
 ### Bug Fixes
