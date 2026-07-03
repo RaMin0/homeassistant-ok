@@ -79,6 +79,23 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                         ]
                     },
                 )
+            if path.endswith("/currentChargings"):
+                return httpx.Response(
+                    200,
+                    json=[
+                        {
+                            "csIdentifier": "OK-CHARGER-001",
+                            "connectorId": 1,
+                            "chargingToken": "token",
+                            "firestoreToken": "firestore-token",
+                            "status": {
+                                "scheduledStart": "2025-01-01T04:00:00+00:00",
+                                "scheduledEnd": "2025-01-01T06:00:00+00:00",
+                                "statusUpdated": "2025-01-01T03:00:00+00:00",
+                            },
+                        }
+                    ],
+                )
             if path.endswith("/start"):
                 start_bodies.append(json.loads(request.content))
                 return httpx.Response(200, json={"result": "Success", "chargingToken": "token"})
@@ -133,6 +150,7 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
                 auto_start = await client.set_station_auto_start("station-id", False)
                 restarted = await client.restart_station("station-id")
                 chargings = await client.get_chargings()
+                legacy_chargings = await client.get_chargings_v2()
                 started = await client.start_charging(
                     charging_station_id="station-id", connector_id=1
                 )
@@ -175,6 +193,11 @@ def test_async_client_supports_service_data_and_status_methods() -> None:
         assert chargings[0]["chargingTransactionType"] == "Scheduled"
         assert chargings[0]["schedules"][0]["scheduledStart"] == "2025-01-01T01:00:00+00:00"
         assert chargings[0]["schedules"][0]["scheduledEnd"] is None
+        assert legacy_chargings[0]["firestoreToken"] == "firestore-token"
+        assert legacy_chargings[0]["schedules"][0]["scheduledStart"] == (
+            "2025-01-01T04:00:00+00:00"
+        )
+        assert legacy_chargings[0]["schedules"][0]["statusUpdated"] == ("2025-01-01T03:00:00+00:00")
         assert started["result"] == "Success"
         assert scheduled["chargingToken"] == "token"
         assert scheduled_without_end["chargingToken"] == "token"

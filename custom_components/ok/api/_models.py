@@ -12,7 +12,6 @@ type JsonObject = dict[str, JsonValue]
 class RegisterDeviceResult(TypedDict, total=False):
     DeviceId: str
     DeviceFriendlyId: str
-    FeatureFlagListe: list[str] | None
 
 
 class RegisterDeviceResponse(TypedDict):
@@ -44,7 +43,6 @@ class LoginResponse(TypedDict):
 class DeviceSettingsResult(TypedDict, total=False):
     DeviceId: str
     DeviceFriendlyId: str
-    FeatureFlagListe: list[str]
     Bruger: LoginResult
 
 
@@ -107,6 +105,11 @@ class StationPricesResponse(TypedDict, total=False):
 class ChargingSchedule(TypedDict, total=False):
     scheduledStart: str | None
     scheduledEnd: str | None
+    scheduleUpdatedAt: str
+    scheduledUpdatedAt: str
+    updatedAt: str
+    lastUpdated: str
+    statusUpdated: str
 
 
 class CurrentCharging(TypedDict, total=False):

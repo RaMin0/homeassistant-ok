@@ -127,9 +127,11 @@ Options flowet lader dig slå valgfrie dele fra:
   ladesessionsstatus. Slå dette fra for kun at bruge polling.
 
 Pollingfrekvens styres af integrationen. Charger metadata og priser opdateres cirka hvert 30. minut.
-Aktive ladesessioner opdateres oftere mens de er aktive og sjældnere når de er idle. Når seneste
-session entities er slået til, hentes den fulde kvitteringsliste ved setup, force refresh og cirka
-hver 12. time; quick receipt bruges for kendte sessioner efter de afsluttes.
+Aktive ladesessioner opdateres oftere mens de er aktive og sjældnere når de er idle, med OKs nyere
+current-chargings endpoint plus en valgfri APK-observeret fallback-kilde til ladeplan-afstemning.
+Når seneste session entities er slået til, hentes den fulde kvitteringsliste ved setup, force
+refresh og cirka hver 12. time; quick receipt prøves igen med begrænset backoff for kendte sessioner
+efter de afsluttes.
 
 ## 🧩 Entities Og Actions
 

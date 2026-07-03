@@ -134,6 +134,23 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
                     ]
                 },
             )
+        if path.endswith("/currentChargings"):
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "csIdentifier": "OK-CHARGER-001",
+                        "connectorId": 1,
+                        "chargingToken": "token",
+                        "firestoreToken": "firestore-token",
+                        "status": {
+                            "scheduledStart": "2025-01-01T04:00:00+00:00",
+                            "scheduledEnd": "2025-01-01T06:00:00+00:00",
+                            "statusUpdated": "2025-01-01T03:00:00+00:00",
+                        },
+                    }
+                ],
+            )
         if path.endswith("/start"):
             return httpx.Response(200, json={"result": "Success", "chargingToken": "token"})
         if path.endswith("/schedule-charging"):
@@ -179,6 +196,12 @@ def test_data_methods_use_timestamp_hmac_headers_and_expected_paths() -> None:
         assert chargings[0]["chargingTransactionType"] == "Scheduled"
         assert chargings[0]["schedules"][0]["scheduledStart"] == "2025-01-01T01:00:00+00:00"
         assert chargings[0]["schedules"][0]["scheduledEnd"] is None
+        legacy_chargings = client.get_chargings_v2()
+        assert legacy_chargings[0]["firestoreToken"] == "firestore-token"
+        assert legacy_chargings[0]["schedules"][0]["scheduledStart"] == (
+            "2025-01-01T04:00:00+00:00"
+        )
+        assert legacy_chargings[0]["schedules"][0]["statusUpdated"] == ("2025-01-01T03:00:00+00:00")
         assert (
             client.start_charging(charging_station_id="station-id", connector_id=1)["result"]
             == "Success"

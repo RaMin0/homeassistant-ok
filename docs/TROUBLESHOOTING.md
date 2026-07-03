@@ -57,7 +57,8 @@ Polling is still used for data that is not fully covered by those realtime docum
 
 - Account and charger discovery.
 - Charger metadata.
-- Current charging sessions and schedule fallback data.
+- Current charging sessions and schedule fallback data from the primary v3 endpoint plus the
+  optional APK-observed v2 endpoint.
 - Energy prices.
 - Receipt and last-session data.
 - Watcher recovery and HTTP snapshots after startup, retries, or force refresh.
@@ -87,12 +88,11 @@ for that connector.
 OK may report a schedule with only a start time. In that case, `schedule_from` shows the start,
 `schedule_to` is empty, and `schedule_duration` is unavailable until an end time exists.
 After a successful schedule command, the integration records the submitted start/end values locally
-so Home Assistant can show the requested schedule immediately. OK remains the source of truth: the
-next successful current-chargings refresh replaces that local value. The integration uses
-charging-session Firestore watcher events that changed schedule fields for realtime schedule
-changes, but ignores older Firestore schedule fields when current-chargings has already provided a
-newer snapshot. If OK returns no active schedule for the connector, the schedule datetime entities
-become empty again.
+so Home Assistant can show the requested schedule immediately. OK remains the source of truth:
+local command echoes, v3 current-chargings snapshots, v2 current-chargings snapshots, and
+charging-session Firestore watcher events are compared by their source/update timestamp. If the
+freshest source reports no active schedule for the connector, the schedule datetime entities become
+empty again.
 
 - Select the OK connector status sensor for the correct connector.
 - Confirm the OK app shows an active charging session or schedule.

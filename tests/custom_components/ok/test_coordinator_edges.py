@@ -19,6 +19,7 @@ from custom_components.ok.coordinator import (
     OkDataUpdateCoordinator,
     _charging_connector_key,
     _charging_status_token,
+    _document_schedule_event_at,
     _document_status,
     _document_version,
     _finished_chargings,
@@ -147,6 +148,17 @@ def test_coordinator_helper_edges() -> None:
     assert _parse_datetime("") is None
     assert _parse_datetime("bad") is None
     assert _parse_datetime("2026-01-01T00:00:00Z") == datetime(2026, 1, 1)
+    assert _parse_datetime("2026-01-01T00:00:00") == datetime(2026, 1, 1)
+    assert _document_schedule_event_at(FirestoreDocument("none", {}, None, None, {})) is None
+    assert _document_schedule_event_at(
+        FirestoreDocument(
+            "scheduled",
+            {"statusEventTime": "1767225600000000000"},
+            None,
+            "2025-01-01T00:00:00Z",
+            {},
+        )
+    ) == datetime(2026, 1, 1, tzinfo=UTC)
     assert _realtime_watch_key_sort(("charging", "token")) == (1, "token", 0)
     assert _realtime_watch_keys(data) == {
         ("station", "charger", 2),

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from typing import Any
@@ -29,10 +30,12 @@ from custom_components.ok.coordinator import (
     _price_source,
     _RealtimeWatchHandle,
 )
+from custom_components.ok.schedule import schedule_start
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntries
 from homeassistant.const import CONF_EMAIL
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -82,11 +85,16 @@ class FakeOkClient:
         self.get_stations_error: Exception | None = None
         self.locations_response: list[dict[str, Any]] | None = None
         self.current_chargings_response: list[dict[str, Any]] | None = None
+        self.current_chargings_v2_response: list[dict[str, Any]] | None = None
+        self.current_chargings_error: Exception | None = None
+        self.current_chargings_v2_error: Exception | None = None
         self.station_calls = 0
         self.price_calls = 0
         self.chargings_calls = 0
+        self.chargings_v2_calls = 0
         self.receipts_calls = 0
         self.quick_receipt_calls: list[str] = []
+        self.quick_receipt_failures = 0
         self.station_status_calls = 0
         self.charging_status_calls = 0
 
@@ -129,9 +137,17 @@ class FakeOkClient:
 
     async def get_chargings(self) -> list[dict[str, Any]]:
         self.chargings_calls += 1
+        if self.current_chargings_error is not None:
+            raise self.current_chargings_error
         if self.current_chargings_response is not None:
             return self.current_chargings_response
         return load_fixture("current_chargings.json")
+
+    async def get_chargings_v2(self) -> list[dict[str, Any]]:
+        self.chargings_v2_calls += 1
+        if self.current_chargings_v2_error is not None:
+            raise self.current_chargings_v2_error
+        return self.current_chargings_v2_response or []
 
     async def get_charging_status(self, charging_token: str) -> FirestoreDocument:
         self.charging_status_calls += 1
@@ -155,6 +171,9 @@ class FakeOkClient:
     async def get_charging_receipt(self, charging_token: str) -> dict[str, Any]:
         self.quick_receipt_calls.append(charging_token)
         assert charging_token == "charging-token-001"
+        if self.quick_receipt_failures:
+            self.quick_receipt_failures -= 1
+            raise OkConnectionError("quick receipt unavailable")
         return {
             "chargingStationId": "OK-CHARGER-001",
             "kWh": 11300,
@@ -330,6 +349,94 @@ async def _test_coordinator_records_schedule_until_next_chargings_refresh(
         await coordinator.async_request_operational_refresh()
 
         assert coordinator.active_charging_for("OK-CHARGER-001", 1) is None
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_records_unmatched_schedule_with_command_token(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_records_unmatched_schedule_with_command_token(tmp_path))
+
+
+async def _test_coordinator_records_unmatched_schedule_with_command_token(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+
+        coordinator.record_schedule_window(
+            "OK-CHARGER-001",
+            2,
+            "2026-07-03T11:00:00+00:00",
+            "2026-07-03T13:00:00+00:00",
+            charging_token="charging-token-new",
+        )
+
+        await coordinator.async_config_entry_first_refresh()
+
+        coordinator.record_schedule_window(
+            "OK-CHARGER-001",
+            2,
+            "2026-07-03T11:00:00+00:00",
+            "2026-07-03T13:00:00+00:00",
+            charging_token="charging-token-new",
+        )
+
+        active = coordinator.active_charging_for("OK-CHARGER-001", 2)
+        assert active is not None
+        assert active["chargingToken"] == "charging-token-new"
+        assert active["firestoreToken"] == "charging-token-new"
+        assert active["schedules"] == [
+            {
+                "scheduledStart": "2026-07-03T11:00:00+00:00",
+                "scheduledEnd": "2026-07-03T13:00:00+00:00",
+            }
+        ]
+        status = coordinator.charging_status_for(active)
+        assert status is not None
+        assert status.fields["scheduledEnd"] == "2026-07-03T13:00:00+00:00"
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_syncs_realtime_watch_from_recorded_schedule_token(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_syncs_realtime_watch_from_recorded_schedule_token(tmp_path))
+
+
+async def _test_coordinator_syncs_realtime_watch_from_recorded_schedule_token(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        assert "charging-token-001" in client.charging_watch_callbacks
+
+        await coordinator.async_record_schedule_window(
+            "OK-CHARGER-001",
+            1,
+            "2026-07-03T11:00:00+00:00",
+            None,
+            charging_token="charging-token-002",
+            firestore_token="firestore-token-002",
+        )
+
+        active = coordinator.active_charging_for("OK-CHARGER-001", 1)
+        assert active is not None
+        assert active["chargingToken"] == "charging-token-002"
+        assert active["firestoreToken"] == "firestore-token-002"
+        assert "firestore-token-002" in client.charging_watch_callbacks
+        assert ("charging", "firestore-token-002") in coordinator._realtime_watch_handles
+        assert ("charging", "charging-token-001") not in coordinator._realtime_watch_handles
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()
@@ -787,6 +894,227 @@ def test_coordinator_applies_realtime_schedule_update_without_status_change(
     asyncio.run(_test_coordinator_applies_realtime_schedule_update_without_status_change(tmp_path))
 
 
+def test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_is_newer(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(
+        _test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_is_newer(tmp_path)
+    )
+
+
+async def _test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_is_newer(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+        connector = coordinator.connectors()[0]
+        coordinator._current_chargings_snapshot_at = datetime(2026, 7, 3, 10, 30, tzinfo=UTC)
+
+        assert schedule_start(coordinator, connector) == datetime(2025, 6, 5, 10, 30, tzinfo=UTC)
+
+        client.charging_watch_callbacks["charging-token-001"](
+            FirestoreWatchEvent(
+                document=FirestoreDocument(
+                    name=("documents/OK/Emsp/RemoteTransactions/charging-token-001"),
+                    fields={
+                        "status": "Scheduled",
+                        "scheduledStart": "2025-06-04T10:00:00Z",
+                    },
+                    create_time="2025-06-04T09:00:00Z",
+                    update_time="2025-06-04T10:01:00Z",
+                    raw={},
+                ),
+                exists=True,
+            )
+        )
+        await hass.async_block_till_done()
+
+        assert schedule_start(coordinator, connector) == datetime(2025, 6, 5, 10, 30, tzinfo=UTC)
+
+        client.charging_watch_callbacks["charging-token-001"](
+            FirestoreWatchEvent(
+                document=FirestoreDocument(
+                    name=("documents/OK/Emsp/RemoteTransactions/charging-token-001"),
+                    fields={
+                        "status": "Scheduled",
+                        "scheduledStart": "2026-07-03T11:00:00Z",
+                    },
+                    create_time="2026-07-03T10:59:00Z",
+                    update_time="2026-07-03T11:01:00Z",
+                    raw={},
+                ),
+                exists=True,
+            )
+        )
+        await hass.async_block_till_done()
+
+        assert schedule_start(coordinator, connector) == datetime(2026, 7, 3, 11, 0, tzinfo=UTC)
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_uses_newer_v2_current_chargings_schedule(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_uses_newer_v2_current_chargings_schedule(tmp_path))
+
+
+async def _test_coordinator_uses_newer_v2_current_chargings_schedule(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    client.current_chargings_response = [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "chargingToken": "charging-token-001",
+            "firestoreToken": "charging-token-001",
+            "schedules": [
+                {
+                    "scheduledStart": "2026-07-03T11:00:00Z",
+                    "updatedAt": "2026-07-03T10:00:00Z",
+                }
+            ],
+        }
+    ]
+    client.current_chargings_v2_response = [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "chargingToken": "charging-token-001",
+            "firestoreToken": "charging-token-001",
+            "schedules": [
+                {
+                    "scheduledStart": "2026-07-03T12:00:00Z",
+                    "scheduledEnd": "2026-07-03T14:00:00Z",
+                    "statusUpdated": "2026-07-03T10:05:00Z",
+                }
+            ],
+        }
+    ]
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        connector = coordinator.connectors()[0]
+        assert schedule_start(coordinator, connector) == datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
+        assert client.chargings_v2_calls == 1
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_falls_back_to_v2_current_chargings_when_v3_fails(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_test_coordinator_falls_back_to_v2_current_chargings_when_v3_fails(tmp_path))
+
+
+async def _test_coordinator_falls_back_to_v2_current_chargings_when_v3_fails(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    client.current_chargings_error = OkConnectionError("v3 unavailable")
+    client.current_chargings_v2_response = load_fixture("current_chargings.json")
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        connector = coordinator.connectors()[0]
+        assert schedule_start(coordinator, connector) == datetime(2025, 6, 5, 10, 30, tzinfo=UTC)
+        assert client.chargings_calls == 1
+        assert client.chargings_v2_calls == 1
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_raises_v3_current_chargings_error_when_v2_fallback_fails(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(
+        _test_coordinator_raises_v3_current_chargings_error_when_v2_fallback_fails(tmp_path)
+    )
+
+
+async def _test_coordinator_raises_v3_current_chargings_error_when_v2_fallback_fails(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    client.current_chargings_error = OkConnectionError("v3 unavailable")
+    client.current_chargings_v2_error = OkConnectionError("v2 unavailable")
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        with pytest.raises(ConfigEntryNotReady, match="v3 unavailable"):
+            await coordinator.async_config_entry_first_refresh()
+
+        assert client.chargings_calls == 1
+        assert client.chargings_v2_calls == 1
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_merge_and_schedule_snapshot_helpers() -> None:
+    snapshot_at = datetime(2026, 7, 3, 10, 0, tzinfo=UTC)
+    primary = [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "schedules": [{"scheduledStart": "2026-07-03T11:00:00Z"}],
+        },
+        {"csIdentifier": "", "connectorId": 1, "chargingToken": "bad"},
+    ]
+    fallback = [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "locationId": "location-id",
+            "chargingToken": "charging-token",
+            "firestoreToken": "firestore-token",
+            "chargingTransactionType": "Scheduled",
+            "initiatedAt": "2026-07-03T09:30:00Z",
+            "schedules": [
+                {
+                    "scheduledStart": "2026-07-03T12:00:00Z",
+                    "updatedAt": "2026-07-03T10:05:00Z",
+                }
+            ],
+        },
+        {"csIdentifier": "OK-CHARGER-002", "connectorId": 1, "chargingToken": "other"},
+        {"csIdentifier": "OK-CHARGER-003", "connectorId": 0, "chargingToken": "bad"},
+    ]
+
+    merged = coordinator_module._merge_current_charging_sources(primary, fallback)
+    assert merged[0]["locationId"] == "location-id"
+    assert merged[0]["chargingToken"] == "charging-token"
+    assert merged[0]["firestoreToken"] == "firestore-token"
+    assert merged[0]["chargingTransactionType"] == "Scheduled"
+    assert merged[0]["initiatedAt"] == "2026-07-03T09:30:00Z"
+    assert merged[1]["csIdentifier"] == "OK-CHARGER-002"
+
+    snapshots = coordinator_module._schedule_snapshots_from_sources(
+        primary,
+        fallback,
+        snapshot_at,
+    )
+    snapshot = snapshots[("OK-CHARGER-001", 1)]
+    assert snapshot.schedule["scheduledStart"] == "2026-07-03T12:00:00Z"
+    assert snapshot.source == "current_chargings_v2"
+    assert coordinator_module._quick_receipt_retry_delay(4) == 300
+
+
 async def _test_coordinator_applies_realtime_schedule_update_without_status_change(
     tmp_path: Path,
 ) -> None:
@@ -1101,6 +1429,96 @@ async def _test_coordinator_fetches_quick_receipt_for_known_finished_session(
         await coordinator.async_request_operational_refresh()
 
         assert client.quick_receipt_calls == ["charging-token-001"]
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_retries_quick_receipt_for_known_finished_session(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_retries_quick_receipt_for_known_finished_session(tmp_path))
+
+
+async def _test_coordinator_retries_quick_receipt_for_known_finished_session(
+    tmp_path: Path,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    client.quick_receipt_failures = 1
+    entry = _entry()
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        client.current_chargings_response = []
+        await coordinator.async_request_operational_refresh()
+
+        assert client.quick_receipt_calls == ["charging-token-001"]
+        assert "charging-token-001" in coordinator._quick_receipt_retries
+
+        retry = coordinator._quick_receipt_retries["charging-token-001"]
+        coordinator._quick_receipt_retries["charging-token-001"] = replace(retry, retry_at=0)
+        await coordinator.async_request_operational_refresh()
+
+        assert client.quick_receipt_calls == ["charging-token-001", "charging-token-001"]
+        assert "charging-token-001" not in coordinator._quick_receipt_retries
+        assert coordinator.last_receipt_for("OK-CHARGER-001")["kWh"] == 11.3
+    finally:
+        await coordinator.async_close_realtime_watches()
+        await hass.async_stop()
+
+
+def test_coordinator_prunes_quick_receipt_retry_states(tmp_path: Path) -> None:
+    asyncio.run(_test_coordinator_prunes_quick_receipt_retry_states(tmp_path))
+
+
+async def _test_coordinator_prunes_quick_receipt_retry_states(tmp_path: Path) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    entry = _entry()
+    now = 1_000.0
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+        assert coordinator.data is not None
+        previous = coordinator.data
+        charging = previous.current_chargings[0]
+        coordinator._quick_receipt_retries = {
+            "future": coordinator_module._QuickReceiptRetry(
+                charging=charging,
+                attempts=0,
+                first_seen_at=now,
+                retry_at=now + 10,
+            ),
+            "max-attempts": coordinator_module._QuickReceiptRetry(
+                charging=charging,
+                attempts=coordinator_module._QUICK_RECEIPT_MAX_ATTEMPTS,
+                first_seen_at=now,
+                retry_at=now,
+            ),
+            "too-old": coordinator_module._QuickReceiptRetry(
+                charging=charging,
+                attempts=1,
+                first_seen_at=now - coordinator_module._QUICK_RECEIPT_MAX_AGE - 1,
+                retry_at=now,
+            ),
+            "backoff": coordinator_module._QuickReceiptRetry(
+                charging=charging,
+                attempts=1,
+                first_seen_at=now,
+                retry_at=now,
+            ),
+        }
+        coordinator._endpoint_backoff_until[coordinator_module._quick_receipt_source("backoff")] = (
+            now + 60
+        )
+
+        receipts = await coordinator._async_receipts(previous, previous.current_chargings, now)
+
+        assert receipts == previous.receipts
+        assert set(coordinator._quick_receipt_retries) == {"future", "backoff"}
+        assert client.quick_receipt_calls == []
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()

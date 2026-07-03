@@ -49,6 +49,9 @@ _PRICE_REFRESH_INTERVAL = timedelta(minutes=30)
 _ACTIVE_CHARGINGS_REFRESH_INTERVAL = timedelta(seconds=60)
 _IDLE_CHARGINGS_REFRESH_INTERVAL = timedelta(minutes=5)
 _RECEIPTS_REFRESH_INTERVAL = timedelta(hours=12)
+_QUICK_RECEIPT_MAX_ATTEMPTS = 5
+_QUICK_RECEIPT_RETRY_BASE_DELAY = 60
+_QUICK_RECEIPT_MAX_AGE = 15 * 60
 _OPTIONAL_API_TIMEOUT = 7
 _RATE_LIMIT_BACKOFF_FALLBACK = 300
 _REALTIME_REFRESH_DELAY = 5
@@ -68,6 +71,7 @@ _SOURCE_ACCOUNT_SETTINGS = "account_settings"
 _SOURCE_STATIONS = "stations"
 _SOURCE_PRICES = "prices"
 _SOURCE_CHARGINGS = "chargings"
+_SOURCE_CHARGINGS_V2 = "chargings_v2"
 _SOURCE_RECEIPTS = "receipts"
 _REFRESH_TRIGGER_AUTOMATIC: RefreshTrigger = "automatic"
 _REFRESH_TRIGGER_FORCE: RefreshTrigger = "force_refresh"
@@ -90,12 +94,32 @@ _POLL_TRIGGER_ATTRIBUTE_VALUES: Mapping[RefreshTrigger, str] = {
 }
 
 type _RealtimeWatchKey = tuple[Literal["charging"], str] | tuple[Literal["station"], str, int]
+type _ScheduleSnapshotSource = Literal[
+    "current_chargings",
+    "current_chargings_v2",
+    "local_command",
+]
 
 
 @dataclass(frozen=True, slots=True)
 class _RealtimeWatchFailure:
     attempts: int
     retry_at: float
+
+
+@dataclass(frozen=True, slots=True)
+class _QuickReceiptRetry:
+    charging: CurrentCharging
+    attempts: int
+    first_seen_at: float
+    retry_at: float
+
+
+@dataclass(frozen=True, slots=True)
+class ChargingScheduleSnapshot:
+    schedule: ChargingSchedule | None
+    updated_at: datetime
+    source: _ScheduleSnapshotSource
 
 
 @dataclass(slots=True)
@@ -139,6 +163,9 @@ class OkData:
     station_status: dict[tuple[str, int], FirestoreDocument] = field(default_factory=dict)
     current_chargings: tuple[CurrentCharging, ...] = ()
     charging_status: dict[str, FirestoreDocument] = field(default_factory=dict)
+    schedule_snapshots: dict[tuple[str, int], ChargingScheduleSnapshot] = field(
+        default_factory=dict
+    )
     receipts: tuple[ChargingReceipt, ...] = ()
 
 
@@ -180,7 +207,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         self._force_chargings_refresh = False
         self._force_receipts_refresh = False
         self._force_realtime_snapshots = False
-        self._quick_receipt_tokens: set[str] = set()
+        self._quick_receipt_completed_tokens: set[str] = set()
+        self._quick_receipt_retries: dict[str, _QuickReceiptRetry] = {}
         self._realtime_watch_handles: dict[_RealtimeWatchKey, _RealtimeWatchHandle] = {}
         self._realtime_watch_failures: dict[_RealtimeWatchKey, _RealtimeWatchFailure] = {}
         self._realtime_watches_unavailable = False
@@ -236,7 +264,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                     )
                     station_status[key] = _newest_document(station_status.get(key), document)
 
-        current_chargings = await self._async_current_chargings(now)
+        current_chargings, schedule_snapshots = await self._async_current_chargings(now)
         charging_status = self._charging_status_from_cache(current_chargings)
         for charging in current_chargings:
             token = _charging_status_token(charging)
@@ -260,6 +288,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             station_status=station_status,
             current_chargings=current_chargings,
             charging_status=charging_status,
+            schedule_snapshots=schedule_snapshots,
             receipts=receipts,
         )
         await self._async_remove_stale_devices(data)
@@ -330,7 +359,10 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         self._force_prices_refresh = False
         return prices
 
-    async def _async_current_chargings(self, now: float) -> tuple[CurrentCharging, ...]:
+    async def _async_current_chargings(
+        self,
+        now: float,
+    ) -> tuple[tuple[CurrentCharging, ...], dict[tuple[str, int], ChargingScheduleSnapshot]]:
         interval = (
             _ACTIVE_CHARGINGS_REFRESH_INTERVAL
             if self.data is not None and self.data.current_chargings
@@ -341,12 +373,50 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             or self._force_chargings_refresh
             or self._is_due(_SOURCE_CHARGINGS, interval, now)
         ):
-            current_chargings = tuple(await self._call_api(self.client.get_chargings()))
+            snapshot_at = datetime.now(UTC)
+            v3_chargings: tuple[CurrentCharging, ...] = ()
+            v3_error: UpdateFailed | None = None
+            try:
+                v3_chargings = tuple(await self._call_api(self.client.get_chargings()))
+            except UpdateFailed as err:
+                v3_error = err
+
+            v2_chargings = await self._async_current_chargings_v2(now)
+            if v3_error is not None and v2_chargings is None:
+                raise v3_error
+
+            current_chargings = _merge_current_charging_sources(
+                v3_chargings,
+                v2_chargings or (),
+            )
+            schedule_snapshots = _schedule_snapshots_from_sources(
+                v3_chargings,
+                v2_chargings or (),
+                snapshot_at,
+            )
             self._mark_refreshed(_SOURCE_CHARGINGS, now)
             self._current_chargings_snapshot_at = self._last_refresh_wall.get(_SOURCE_CHARGINGS)
             self._force_chargings_refresh = False
-            return current_chargings
-        return cast(OkData, self.data).current_chargings
+            return current_chargings, schedule_snapshots
+        data = cast(OkData, self.data)
+        return data.current_chargings, data.schedule_snapshots
+
+    async def _async_current_chargings_v2(
+        self,
+        now: float,
+    ) -> tuple[CurrentCharging, ...] | None:
+        async def get_chargings_v2() -> list[CurrentCharging]:
+            return await self.client.get_chargings_v2()
+
+        response = await self._call_optional_api(
+            _SOURCE_CHARGINGS_V2,
+            get_chargings_v2,
+            now,
+        )
+        if response is None:
+            return None
+        self._mark_refreshed(_SOURCE_CHARGINGS_V2, now)
+        return tuple(response)
 
     async def _async_receipts(
         self,
@@ -356,6 +426,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
     ) -> tuple[ChargingReceipt, ...]:
         if self.entry.options.get(CONF_INCLUDE_RECEIPTS, True) is False:
             self._force_receipts_refresh = False
+            self._quick_receipt_retries.clear()
             return ()
 
         receipts = previous.receipts if previous is not None else ()
@@ -377,24 +448,51 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
 
         for charging in _finished_chargings(previous.current_chargings, current_chargings):
             token = _charging_token(charging)
-            if token is None or token in self._quick_receipt_tokens:
+            if token is None or token in self._quick_receipt_completed_tokens:
                 continue
-            charging_token = token
+            self._quick_receipt_retries.setdefault(
+                token,
+                _QuickReceiptRetry(
+                    charging=charging,
+                    attempts=0,
+                    first_seen_at=now,
+                    retry_at=now,
+                ),
+            )
+
+        for charging_token, retry in tuple(self._quick_receipt_retries.items()):
+            if retry.retry_at > now:
+                continue
+            if retry.attempts >= _QUICK_RECEIPT_MAX_ATTEMPTS:
+                self._quick_receipt_retries.pop(charging_token, None)
+                continue
+            if now - retry.first_seen_at > _QUICK_RECEIPT_MAX_AGE:
+                self._quick_receipt_retries.pop(charging_token, None)
+                continue
+            source = _quick_receipt_source(charging_token)
+            if self._is_backing_off(source, now):
+                continue
 
             async def get_charging_receipt(token: str = charging_token) -> ChargingReceipt:
                 return await self.client.get_charging_receipt(token)
 
             receipt = await self._call_optional_api(
-                _quick_receipt_source(charging_token),
+                source,
                 get_charging_receipt,
                 now,
             )
             if receipt is None:
+                self._quick_receipt_retries[charging_token] = replace(
+                    retry,
+                    attempts=retry.attempts + 1,
+                    retry_at=now + _quick_receipt_retry_delay(retry.attempts + 1),
+                )
                 continue
             receipt = _normalize_quick_receipt(receipt)
             receipts = _merge_receipt(receipts, receipt)
-            self._quick_receipt_tokens.add(charging_token)
-            station_id = receipt.get("chargingStationId") or charging.get("csIdentifier")
+            self._quick_receipt_completed_tokens.add(charging_token)
+            self._quick_receipt_retries.pop(charging_token, None)
+            station_id = receipt.get("chargingStationId") or retry.charging.get("csIdentifier")
             if isinstance(station_id, str) and station_id:
                 self._mark_refreshed(_session_receipt_source(station_id), now)
         return receipts
@@ -576,6 +674,53 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         if charging is None or (token := _charging_status_token(charging)) is None:
             return None
         return self._charging_schedule_event_at.get(token)
+
+    def schedule_source_for(self, connector: OkConnectorRef) -> Mapping[str, Any] | None:
+        """Return the freshest trusted schedule source for a charger connector."""
+        data = cast(OkData | None, self.data)
+        if data is None:
+            return None
+
+        connector_key = (connector.station_id, connector.connector_id)
+        candidates: list[tuple[datetime, int, Mapping[str, Any] | None]] = []
+        if (snapshot := data.schedule_snapshots.get(connector_key)) is not None:
+            candidates.append(
+                (
+                    snapshot.updated_at,
+                    _schedule_source_priority(snapshot.source),
+                    snapshot.schedule,
+                )
+            )
+
+        charging = self.active_charging_for(connector.station_id, connector.connector_id)
+        document = self.charging_status_for(charging)
+        if document is not None:
+            document_fields = cast(Mapping[str, Any], document.fields)
+            event_at = self.charging_schedule_event_at(charging)
+            if event_at is not None:
+                candidates.append(
+                    (
+                        event_at,
+                        _schedule_source_priority("charging_status"),
+                        document_fields if _has_schedule_start(document_fields) else None,
+                    )
+                )
+            elif (
+                _has_schedule_start(document_fields)
+                and (updated_at := _document_schedule_event_at(document)) is not None
+            ):
+                candidates.append(
+                    (
+                        updated_at,
+                        _schedule_source_priority("charging_status"),
+                        document_fields,
+                    )
+                )
+
+        if not candidates:
+            return None
+        candidates.sort(key=lambda candidate: (candidate[0], candidate[1]), reverse=True)
+        return candidates[0][2]
 
     def charger_last_refresh(self, station_id: str) -> datetime | None:
         refresh_times = [
@@ -776,6 +921,9 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         connector_id: int,
         scheduled_start: str,
         scheduled_end: str | None,
+        *,
+        charging_token: str | None = None,
+        firestore_token: str | None = None,
     ) -> None:
         """Record a successful schedule command until OK's next schedule refresh."""
         if self.data is None:
@@ -793,21 +941,41 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                 charging.get("csIdentifier") == station_id
                 and charging.get("connectorId") == connector_id
             ):
-                matched_charging = cast(CurrentCharging, {**charging, "schedules": [schedule]})
+                matched_charging = _with_schedule_command_tokens(
+                    charging,
+                    schedule,
+                    charging_token=charging_token,
+                    firestore_token=firestore_token,
+                )
                 current_chargings.append(matched_charging)
                 matched = True
             else:
                 current_chargings.append(charging)
 
         if not matched:
-            matched_charging = {
-                "csIdentifier": station_id,
-                "connectorId": connector_id,
-                "schedules": [schedule],
-            }
+            matched_charging = _with_schedule_command_tokens(
+                cast(
+                    CurrentCharging,
+                    {
+                        "csIdentifier": station_id,
+                        "connectorId": connector_id,
+                    },
+                ),
+                schedule,
+                charging_token=charging_token,
+                firestore_token=firestore_token,
+            )
             current_chargings.append(matched_charging)
 
         charging_status = self.data.charging_status
+        schedule_snapshots = {
+            **self.data.schedule_snapshots,
+            (station_id, connector_id): ChargingScheduleSnapshot(
+                schedule=schedule,
+                updated_at=datetime.now(UTC),
+                source="local_command",
+            ),
+        }
         if (
             matched_charging is not None
             and (token := _charging_status_token(matched_charging)) is not None
@@ -840,9 +1008,32 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                 self.data,
                 current_chargings=tuple(current_chargings),
                 charging_status=charging_status,
+                schedule_snapshots=schedule_snapshots,
             )
         )
         self._current_chargings_snapshot_at = datetime.now(UTC)
+
+    async def async_record_schedule_window(
+        self,
+        station_id: str,
+        connector_id: int,
+        scheduled_start: str,
+        scheduled_end: str | None,
+        *,
+        charging_token: str | None = None,
+        firestore_token: str | None = None,
+    ) -> None:
+        """Record a successful schedule command and sync realtime watches."""
+        self.record_schedule_window(
+            station_id,
+            connector_id,
+            scheduled_start,
+            scheduled_end,
+            charging_token=charging_token,
+            firestore_token=firestore_token,
+        )
+        if self.data is not None:
+            await self._async_sync_realtime_watches(self.data)
 
     def charging_status_for(self, charging: CurrentCharging | None) -> FirestoreDocument | None:
         data = cast(OkData | None, self.data)
@@ -1173,7 +1364,11 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             return
 
         if schedule_fields_changed:
-            self._charging_schedule_event_at[charging_token] = datetime.now(UTC)
+            schedule_event_at = _document_schedule_event_at(document)
+            if schedule_event_at is not None:
+                self._charging_schedule_event_at[charging_token] = schedule_event_at
+            else:
+                self._charging_schedule_event_at.pop(charging_token, None)
         charging = self._active_charging_for_token(charging_token)
         if charging is not None and (connector_key := _charging_connector_key(charging)):
             self._mark_refreshed(_session_status_source(*connector_key), monotonic())
@@ -1370,8 +1565,183 @@ def _quick_receipt_source(charging_token: str) -> str:
     return f"quick_receipt:{charging_token}"
 
 
+def _quick_receipt_retry_delay(attempts: int) -> int:
+    return int(min(_QUICK_RECEIPT_RETRY_BASE_DELAY * 2 ** max(0, attempts - 1), 300))
+
+
+def _merge_current_charging_sources(
+    primary: Iterable[CurrentCharging],
+    fallback: Iterable[CurrentCharging],
+) -> tuple[CurrentCharging, ...]:
+    merged: dict[tuple[str, int], CurrentCharging] = {}
+    order: list[tuple[str, int]] = []
+    for charging in primary:
+        key = _charging_connector_key(charging)
+        if key is None:
+            continue
+        merged[key] = charging
+        order.append(key)
+
+    for charging in fallback:
+        key = _charging_connector_key(charging)
+        if key is None:
+            continue
+        if key not in merged:
+            merged[key] = charging
+            order.append(key)
+            continue
+        merged[key] = _merge_current_charging(merged[key], charging)
+
+    return tuple(merged[key] for key in order)
+
+
+def _merge_current_charging(
+    primary: CurrentCharging,
+    fallback: CurrentCharging,
+) -> CurrentCharging:
+    merged = cast(CurrentCharging, dict(primary))
+    if (
+        not _valid_charging_value(merged.get("locationId"))
+        and isinstance(location_id := fallback.get("locationId"), str)
+        and location_id
+    ):
+        merged["locationId"] = location_id
+    if (
+        not _valid_charging_value(merged.get("chargingToken"))
+        and isinstance(charging_token := fallback.get("chargingToken"), str)
+        and charging_token
+    ):
+        merged["chargingToken"] = charging_token
+    if (
+        not _valid_charging_value(merged.get("firestoreToken"))
+        and isinstance(firestore_token := fallback.get("firestoreToken"), str)
+        and firestore_token
+    ):
+        merged["firestoreToken"] = firestore_token
+    if (
+        not _valid_charging_value(merged.get("chargingTransactionType"))
+        and isinstance(transaction_type := fallback.get("chargingTransactionType"), str)
+        and transaction_type
+    ):
+        merged["chargingTransactionType"] = transaction_type
+    if (
+        not _valid_charging_value(merged.get("initiatedAt"))
+        and isinstance(initiated_at := fallback.get("initiatedAt"), str)
+        and initiated_at
+    ):
+        merged["initiatedAt"] = initiated_at
+    if not _first_schedule(merged) and (fallback_schedule := _first_schedule(fallback)):
+        merged["schedules"] = [fallback_schedule]
+    return merged
+
+
+def _valid_charging_value(value: object) -> bool:
+    return isinstance(value, str) and bool(value)
+
+
+def _schedule_snapshots_from_sources(
+    primary: Iterable[CurrentCharging],
+    fallback: Iterable[CurrentCharging],
+    snapshot_at: datetime,
+) -> dict[tuple[str, int], ChargingScheduleSnapshot]:
+    snapshots: dict[tuple[str, int], ChargingScheduleSnapshot] = {}
+    for charging in primary:
+        _add_schedule_snapshot(snapshots, charging, snapshot_at, "current_chargings")
+    for charging in fallback:
+        _add_schedule_snapshot(snapshots, charging, snapshot_at, "current_chargings_v2")
+    return snapshots
+
+
+def _add_schedule_snapshot(
+    snapshots: dict[tuple[str, int], ChargingScheduleSnapshot],
+    charging: CurrentCharging,
+    snapshot_at: datetime,
+    source: _ScheduleSnapshotSource,
+) -> None:
+    key = _charging_connector_key(charging)
+    if key is None:
+        return
+    schedule = _first_schedule(charging)
+    candidate = ChargingScheduleSnapshot(
+        schedule=schedule,
+        updated_at=_schedule_snapshot_updated_at(charging, schedule, snapshot_at),
+        source=source,
+    )
+    current = snapshots.get(key)
+    if current is None or (
+        candidate.updated_at,
+        _schedule_source_priority(candidate.source),
+    ) >= (
+        current.updated_at,
+        _schedule_source_priority(current.source),
+    ):
+        snapshots[key] = candidate
+
+
+def _first_schedule(charging: Mapping[str, Any] | None) -> ChargingSchedule | None:
+    if charging is None:
+        return None
+    schedules = charging.get("schedules")
+    if not isinstance(schedules, list) or not schedules:
+        return None
+    schedule: object = schedules[0]
+    return cast(ChargingSchedule, schedule) if isinstance(schedule, Mapping) else None
+
+
+def _schedule_snapshot_updated_at(
+    charging: Mapping[str, Any],
+    schedule: Mapping[str, Any] | None,
+    fallback: datetime,
+) -> datetime:
+    sources: list[Mapping[str, Any]] = []
+    if schedule is not None:
+        sources.append(schedule)
+    sources.append(charging)
+    for source in sources:
+        for key in (
+            "scheduleUpdatedAt",
+            "scheduledUpdatedAt",
+            "updatedAt",
+            "lastUpdated",
+            "statusUpdated",
+        ):
+            if (updated_at := _parse_aware_datetime(source.get(key))) is not None:
+                return updated_at
+    return fallback
+
+
+def _has_schedule_start(source: Mapping[str, Any]) -> bool:
+    return any(key in source for key in _CHARGING_SCHEDULE_FIELDS[:1])
+
+
+def _schedule_source_priority(source: _ScheduleSnapshotSource | Literal["charging_status"]) -> int:
+    return {
+        "current_chargings": 40,
+        "current_chargings_v2": 30,
+        "local_command": 50,
+        "charging_status": 20,
+    }[source]
+
+
+def _with_schedule_command_tokens(
+    charging: CurrentCharging,
+    schedule: ChargingSchedule,
+    *,
+    charging_token: str | None,
+    firestore_token: str | None,
+) -> CurrentCharging:
+    updated = cast(CurrentCharging, {**charging, "schedules": [schedule]})
+    if charging_token:
+        updated["chargingToken"] = charging_token
+    if firestore_token:
+        updated["firestoreToken"] = firestore_token
+    elif charging_token and "firestoreToken" not in updated:
+        updated["firestoreToken"] = charging_token
+    return updated
+
+
 def _charging_token(charging: CurrentCharging) -> str | None:
-    token = charging.get("chargingToken") or charging.get("firestoreToken")
+    token = charging.get("chargingToken")
     return token if isinstance(token, str) and token else None
 
 
@@ -1522,6 +1892,25 @@ def _document_update_time(document: FirestoreDocument) -> float:
     return _timestamp_value(document.update_time) or 0
 
 
+def _document_schedule_event_at(document: FirestoreDocument) -> datetime | None:
+    timestamps = [
+        _datetime_from_nanoseconds_field(document.fields.get("statusEventTime")),
+        _parse_aware_datetime(document.fields.get("statusUpdated")),
+        _parse_aware_datetime(document.update_time),
+    ]
+    values = [value for value in timestamps if value is not None]
+    if not values:
+        return None
+    return max(values)
+
+
+def _datetime_from_nanoseconds_field(value: object) -> datetime | None:
+    nanoseconds = _nanoseconds_field(value)
+    if nanoseconds is None:
+        return None
+    return datetime.fromtimestamp(nanoseconds / 1_000_000_000, tz=UTC)
+
+
 def _nanoseconds_field(value: object) -> int | None:
     if isinstance(value, bool):
         return None
@@ -1536,6 +1925,11 @@ def _nanoseconds_field(value: object) -> int | None:
 
 
 def _timestamp_value(value: object) -> float | None:
+    parsed = _parse_aware_datetime(value)
+    return parsed.timestamp() if parsed is not None else None
+
+
+def _parse_aware_datetime(value: object) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
     try:
@@ -1544,7 +1938,7 @@ def _timestamp_value(value: object) -> float | None:
         return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
-    return parsed.timestamp()
+    return parsed.astimezone(UTC)
 
 
 def _retry_after(error: OkRateLimitError) -> int | None:

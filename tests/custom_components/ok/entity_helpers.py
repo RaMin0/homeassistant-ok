@@ -84,6 +84,8 @@ def make_active_charging(
     if scheduled_end is not None:
         schedule["scheduledEnd"] = scheduled_end
     return {
+        "csIdentifier": "OK-CHARGER-001",
+        "connectorId": 1,
         "chargingToken": charging_token,
         "firestoreToken": charging_token,
         "schedules": [schedule],
@@ -181,6 +183,7 @@ class EntityTestCoordinator:
         self.last_refresh = datetime(2026, 6, 14, 12, 0, tzinfo=UTC)
         self.current_chargings_snapshot_at = datetime(2026, 6, 14, 12, 5, tzinfo=UTC)
         self.charging_schedule_event_at_map: dict[str, datetime] = {}
+        self.schedule_snapshots: dict[tuple[str, int], dict[str, Any] | None] = {}
         self.poll_attributes = {
             "account_settings": "2026-06-14T11:50:00+00:00",
             "charger_overview": "2026-06-14T11:55:00+00:00",
@@ -215,8 +218,11 @@ class EntityTestCoordinator:
             "charging-token": make_document(
                 {
                     "status": "Charging",
+                    "statusUpdated": "2026-06-14T12:01:00Z",
                     "powerInW": 3522,
                     "chargeInWh": 5835,
+                    "stopReason": None,
+                    "paymentStatus": "Open",
                 },
                 name="documents/OK/Emsp/RemoteTransactions/charging-token",
             )
@@ -255,6 +261,9 @@ class EntityTestCoordinator:
         connector_id: int,
         scheduled_start: str,
         scheduled_end: str | None,
+        *,
+        charging_token: str | None = None,
+        firestore_token: str | None = None,
     ) -> None:
         connector = self.connector_refs[0]
         if station_id != connector.station_id or connector_id != connector.connector_id:
@@ -266,6 +275,30 @@ class EntityTestCoordinator:
             **(self.active_charging or {}),
             "schedules": [schedule],
         }
+        if charging_token is not None:
+            self.active_charging["chargingToken"] = charging_token
+        if firestore_token is not None:
+            self.active_charging["firestoreToken"] = firestore_token
+        self.schedule_snapshots[(station_id, connector_id)] = schedule
+
+    async def async_record_schedule_window(
+        self,
+        station_id: str,
+        connector_id: int,
+        scheduled_start: str,
+        scheduled_end: str | None,
+        *,
+        charging_token: str | None = None,
+        firestore_token: str | None = None,
+    ) -> None:
+        self.record_schedule_window(
+            station_id,
+            connector_id,
+            scheduled_start,
+            scheduled_end,
+            charging_token=charging_token,
+            firestore_token=firestore_token,
+        )
 
     def station_status_for(self, station_id: str, connector_id: int) -> FirestoreDocument | None:
         return self.station_status_documents.get((station_id, connector_id))
@@ -273,14 +306,38 @@ class EntityTestCoordinator:
     def charging_status_for(self, charging: dict[str, Any] | None) -> FirestoreDocument | None:
         if charging is None:
             return None
-        token = charging.get("chargingToken") or charging.get("firestoreToken")
+        token = charging.get("firestoreToken") or charging.get("chargingToken")
         return self.charging_status_documents.get(token)
 
     def charging_schedule_event_at(self, charging: dict[str, Any] | None) -> datetime | None:
         if charging is None:
             return None
-        token = charging.get("chargingToken") or charging.get("firestoreToken")
+        token = charging.get("firestoreToken") or charging.get("chargingToken")
         return self.charging_schedule_event_at_map.get(token)
+
+    def schedule_source_for(self, connector: OkConnectorRef) -> dict[str, Any] | None:
+        snapshot = self.schedule_snapshots.get((connector.station_id, connector.connector_id))
+        if snapshot is not None:
+            return snapshot
+
+        charging = self.active_charging_for(connector.station_id, connector.connector_id)
+        document = self.charging_status_for(charging)
+        document_fields = document.fields if document is not None else None
+        if (
+            charging is not None
+            and self.charging_schedule_event_at(charging) is not None
+            and document_fields is not None
+            and "scheduledStart" in document_fields
+        ):
+            return document_fields
+
+        schedule = _first_schedule(charging)
+        if schedule is not None and "scheduledStart" in schedule:
+            return schedule
+
+        if document_fields is not None and "scheduledStart" in document_fields:
+            return document_fields
+        return None
 
     def prices_for(self, station_id: str) -> dict[str, Any] | None:
         if station_id == self.connector_refs[0].station_id:
@@ -338,3 +395,13 @@ class EntitySetupEntry:
 
     def async_on_unload(self, callback: Any) -> None:
         self.unload_callbacks.append(callback)
+
+
+def _first_schedule(charging: dict[str, Any] | None) -> dict[str, Any] | None:
+    if charging is None:
+        return None
+    schedules = charging.get("schedules")
+    if not isinstance(schedules, list) or not schedules:
+        return None
+    schedule = schedules[0]
+    return schedule if isinstance(schedule, dict) else None

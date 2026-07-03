@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from custom_components.ok.api import OkAuthenticationError
+from custom_components.ok.api import OkAuthenticationError, OkCommandError
 from custom_components.ok.const import (
     ATTR_AUTOSTART,
     ATTR_SCHEDULED_END,
@@ -41,16 +41,18 @@ class FakeServiceClient:
         self.restart_calls: list[str] = []
         self.auto_start_calls: list[dict[str, Any]] = []
         self.error: Exception | None = None
+        self.schedule_response: dict[str, Any] = {"result": "Success"}
+        self.update_response: dict[str, Any] = {}
 
     async def start_charging(self, **kwargs: Any) -> dict[str, str]:
         self._raise_if_error()
         self.start_calls.append(kwargs)
         return {"result": "Success"}
 
-    async def schedule_charging(self, **kwargs: Any) -> dict[str, str]:
+    async def schedule_charging(self, **kwargs: Any) -> dict[str, Any]:
         self._raise_if_error()
         self.schedule_calls.append(kwargs)
-        return {"result": "Success"}
+        return self.schedule_response
 
     async def update_charging_schedule(
         self,
@@ -59,7 +61,7 @@ class FakeServiceClient:
     ) -> dict[str, Any]:
         self._raise_if_error()
         self.update_calls.append({"charging_token": charging_token, **kwargs})
-        return {}
+        return self.update_response
 
     async def cancel_charging_schedule(self, charging_token: str) -> dict[str, Any]:
         self._raise_if_error()
@@ -126,14 +128,39 @@ class FakeCoordinator:
         connector_id: int,
         scheduled_start: str,
         scheduled_end: str | None,
+        *,
+        charging_token: str | None = None,
+        firestore_token: str | None = None,
     ) -> None:
-        self.schedule_window_calls.append(
-            {
-                "station_id": station_id,
-                "connector_id": connector_id,
-                "scheduled_start": scheduled_start,
-                "scheduled_end": scheduled_end,
-            }
+        call: dict[str, Any] = {
+            "station_id": station_id,
+            "connector_id": connector_id,
+            "scheduled_start": scheduled_start,
+            "scheduled_end": scheduled_end,
+        }
+        if charging_token is not None:
+            call["charging_token"] = charging_token
+        if firestore_token is not None:
+            call["firestore_token"] = firestore_token
+        self.schedule_window_calls.append(call)
+
+    async def async_record_schedule_window(
+        self,
+        station_id: str,
+        connector_id: int,
+        scheduled_start: str,
+        scheduled_end: str | None,
+        *,
+        charging_token: str | None = None,
+        firestore_token: str | None = None,
+    ) -> None:
+        self.record_schedule_window(
+            station_id,
+            connector_id,
+            scheduled_start,
+            scheduled_end,
+            charging_token=charging_token,
+            firestore_token=firestore_token,
         )
 
 
@@ -479,6 +506,52 @@ async def _test_update_schedule_service_falls_back_without_active_token(
         await hass.async_stop()
 
 
+def test_schedule_service_records_command_response_tokens(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asyncio.run(_test_schedule_service_records_command_response_tokens(tmp_path, monkeypatch))
+
+
+async def _test_schedule_service_records_command_response_tokens(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeServiceClient()
+    client.schedule_response = {
+        "result": "Success",
+        "chargingToken": "charging-token-new",
+        "firestoreToken": "firestore-token-new",
+    }
+    try:
+        coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
+        coordinator.active_charging = None
+
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SCHEDULE_CHARGING,
+            {
+                ATTR_ENTITY_ID: "sensor.charger_connector_status",
+                ATTR_SCHEDULED_START: "2026-06-14T15:30:00",
+            },
+            blocking=True,
+        )
+
+        assert coordinator.schedule_window_calls == [
+            {
+                "station_id": "OK-CHARGER-001",
+                "connector_id": 1,
+                "scheduled_start": "2026-06-14T15:30:00+02:00",
+                "scheduled_end": None,
+                "charging_token": "charging-token-new",
+                "firestore_token": "firestore-token-new",
+            }
+        ]
+    finally:
+        await hass.async_stop()
+
+
 def test_schedule_services_reject_end_before_start(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -693,6 +766,43 @@ async def _test_service_auth_error_starts_reauth(
         assert coordinator.refresh_count == 0
         assert entry.reauth_count == 1
         assert exc_info.value.translation_key == "api_authentication_error"
+    finally:
+        await hass.async_stop()
+
+
+def test_service_maps_known_ok_command_errors(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    asyncio.run(_test_service_maps_known_ok_command_errors(tmp_path, monkeypatch))
+
+
+async def _test_service_maps_known_ok_command_errors(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeServiceClient()
+    client.error = OkCommandError(
+        "OK command failed: UpdateScheduleOfFinishedCharge",
+        error_description="UpdateScheduleOfFinishedCharge",
+    )
+    try:
+        coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
+
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_SCHEDULE_CHARGING,
+                {
+                    ATTR_ENTITY_ID: "sensor.charger_connector_status",
+                    ATTR_SCHEDULED_START: "2026-06-14T15:30:00",
+                },
+                blocking=True,
+            )
+
+        assert coordinator.refresh_count == 0
+        assert exc_info.value.translation_key == "command_update_schedule_finished_charge"
     finally:
         await hass.async_stop()
 

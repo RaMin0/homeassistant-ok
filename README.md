@@ -126,9 +126,11 @@ The options flow lets you disable optional surfaces:
   session status. Disable this to use polling only.
 
 Polling cadence is managed by the integration. Charger metadata and prices refresh roughly every 30
-minutes. Current charging sessions refresh more often while active and less often while idle. When
-last-session entities are enabled, the full receipt list is fetched on setup, force refresh, and
-roughly every 12 hours; quick receipt is used for known sessions after they finish.
+minutes. Current charging sessions refresh more often while active and less often while idle, using
+the newer OK current-chargings endpoint plus an optional APK-observed fallback source for schedule
+reconciliation. When last-session entities are enabled, the full receipt list is fetched on setup,
+force refresh, and roughly every 12 hours; quick receipt is retried with bounded backoff for known
+sessions after they finish.
 
 ## 🧩 Entities And Actions
 

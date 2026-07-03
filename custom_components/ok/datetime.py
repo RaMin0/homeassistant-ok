@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import OkConfigEntry
-from .action import active_charging_token, async_call_ok_api
+from .action import active_charging_token, async_call_ok_api, charging_command_tokens
 from .const import DOMAIN
 from .coordinator import OkConnectorRef, OkDataUpdateCoordinator
 from .entity import OkEntity
@@ -126,13 +126,16 @@ class OkScheduleDateTime(OkEntity, DateTimeEntity):  # type: ignore[misc]
                 scheduled_end=scheduled_end_value,
             )
 
-        await async_call_ok_api(api_call, hass=self.hass, entry=self.coordinator.entry)
+        response = await async_call_ok_api(api_call, hass=self.hass, entry=self.coordinator.entry)
+        charging_token, firestore_token = charging_command_tokens(response)
         await self.coordinator.async_request_operational_refresh()
-        self.coordinator.record_schedule_window(
+        await self.coordinator.async_record_schedule_window(
             self.station_id,
             self.connector_id,
             scheduled_start_value,
             scheduled_end_value,
+            charging_token=charging_token,
+            firestore_token=firestore_token,
         )
 
 

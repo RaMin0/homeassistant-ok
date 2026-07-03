@@ -267,6 +267,80 @@
           "faulted": "Fejl"
         }
       },
+      "connector_session_status": {
+        "name": "Sessionsstatus",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Lader-ID"
+          },
+          "connector_id": {
+            "name": "Ladestik-ID"
+          },
+          "raw_status": {
+            "name": "Rå status"
+          },
+          "status_updated": {
+            "name": "Status opdateret"
+          },
+          "stop_reason": {
+            "name": "Stopårsag"
+          },
+          "payment_status": {
+            "name": "Betalingsstatus"
+          }
+        },
+        "state": {
+          "initial": "Initialiserer",
+          "pending": "Afventer",
+          "scheduled": "Planlagt",
+          "waiting_for_charge": "Venter på opladning",
+          "charging": "Oplader",
+          "charging_suspended": "Opladning sat på pause",
+          "charging_suspended_awaiting_automatic_unlock": "Opladning sat på pause og afventer automatisk oplåsning",
+          "remove_cable": "Fjern kabel",
+          "finished": "Afsluttet",
+          "error": "Fejl",
+          "unavailable": "Ikke tilgængelig",
+          "unknown": "Ukendt"
+        }
+      },
+      "connector_session_status_connector": {
+        "name": "Ladestik {connector_id} sessionsstatus",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Lader-ID"
+          },
+          "connector_id": {
+            "name": "Ladestik-ID"
+          },
+          "raw_status": {
+            "name": "Rå status"
+          },
+          "status_updated": {
+            "name": "Status opdateret"
+          },
+          "stop_reason": {
+            "name": "Stopårsag"
+          },
+          "payment_status": {
+            "name": "Betalingsstatus"
+          }
+        },
+        "state": {
+          "initial": "Initialiserer",
+          "pending": "Afventer",
+          "scheduled": "Planlagt",
+          "waiting_for_charge": "Venter på opladning",
+          "charging": "Oplader",
+          "charging_suspended": "Opladning sat på pause",
+          "charging_suspended_awaiting_automatic_unlock": "Opladning sat på pause og afventer automatisk oplåsning",
+          "remove_cable": "Fjern kabel",
+          "finished": "Afsluttet",
+          "error": "Fejl",
+          "unavailable": "Ikke tilgængelig",
+          "unknown": "Ukendt"
+        }
+      },
       "connector_session_power": {
         "name": "Sessionseffekt"
       },
@@ -368,6 +442,18 @@
     },
     "command_failed": {
       "message": "OK-kommando mislykkedes: {reason}"
+    },
+    "command_feature_disabled": {
+      "message": "OK melder, at denne funktion er deaktiveret for kontoen eller laderen."
+    },
+    "command_receipt_unavailable": {
+      "message": "OK kunne ikke klargøre ladekvitteringen endnu. Integrationen prøver igen ved næste opdatering."
+    },
+    "command_update_before_action": {
+      "message": "OK kræver, at laderens status opdateres, før denne handling kan gennemføres. Prøv igen om lidt."
+    },
+    "command_update_schedule_finished_charge": {
+      "message": "OK melder, at ladesessionen allerede er afsluttet, så dens ladeplan kan ikke længere opdateres."
     },
     "api_configuration_error": {
       "message": "OK API-konfigurationen er ufuldstændig: {reason}"

@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
-from .api import CurrentCharging
 from .coordinator import OkConnectorRef, OkDataUpdateCoordinator
 
 _SCHEDULE_START_KEYS = ("scheduledStart", "from", "start", "startTime")
@@ -92,41 +91,7 @@ def _schedule_source(
     coordinator: OkDataUpdateCoordinator,
     connector: OkConnectorRef,
 ) -> Mapping[str, Any] | None:
-    charging = coordinator.active_charging_for(connector.station_id, connector.connector_id)
-    document = coordinator.charging_status_for(charging)
-    schedule = _first_schedule(charging)
-    document_fields = cast(Mapping[str, Any], document.fields) if document is not None else None
-
-    if (
-        document_fields is not None
-        and _has_schedule_start(document_fields)
-        and _document_schedule_event_is_newer_than_current_chargings(coordinator, charging)
-    ):
-        return document_fields
-
-    if schedule is not None and _has_schedule_start(schedule):
-        return schedule
-
-    if document_fields is not None and _has_schedule_start(document_fields):
-        return document_fields
-    return None
-
-
-def _has_schedule_start(source: Mapping[str, Any]) -> bool:
-    return _schedule_mapping_field(source, _SCHEDULE_START_KEYS)[1]
-
-
-def _document_schedule_event_is_newer_than_current_chargings(
-    coordinator: OkDataUpdateCoordinator,
-    charging: CurrentCharging | None,
-) -> bool:
-    schedule_event_at = coordinator.charging_schedule_event_at(charging)
-    if schedule_event_at is None:
-        return False
-    current_chargings_snapshot_at = coordinator.current_chargings_snapshot_at
-    if current_chargings_snapshot_at is None:
-        return True
-    return schedule_event_at > current_chargings_snapshot_at
+    return coordinator.schedule_source_for(connector)
 
 
 def _schedule_mapping_field(
@@ -137,16 +102,6 @@ def _schedule_mapping_field(
         if key in source:
             return source[key], True
     return None, False
-
-
-def _first_schedule(charging: CurrentCharging | None) -> Mapping[str, Any] | None:
-    if charging is None:
-        return None
-    schedules = charging.get("schedules")
-    if not isinstance(schedules, list) or not schedules:
-        return None
-    schedule: object = schedules[0]
-    return schedule if isinstance(schedule, Mapping) else None
 
 
 def parse_datetime(value: Any) -> datetime | None:

@@ -267,6 +267,80 @@
           "faulted": "Faulted"
         }
       },
+      "connector_session_status": {
+        "name": "Session status",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Charger ID"
+          },
+          "connector_id": {
+            "name": "Connector ID"
+          },
+          "raw_status": {
+            "name": "Raw status"
+          },
+          "status_updated": {
+            "name": "Status updated"
+          },
+          "stop_reason": {
+            "name": "Stop reason"
+          },
+          "payment_status": {
+            "name": "Payment status"
+          }
+        },
+        "state": {
+          "initial": "Initial",
+          "pending": "Pending",
+          "scheduled": "Scheduled",
+          "waiting_for_charge": "Waiting for charge",
+          "charging": "Charging",
+          "charging_suspended": "Charging suspended",
+          "charging_suspended_awaiting_automatic_unlock": "Charging suspended awaiting automatic unlock",
+          "remove_cable": "Remove cable",
+          "finished": "Finished",
+          "error": "Error",
+          "unavailable": "Unavailable",
+          "unknown": "Unknown"
+        }
+      },
+      "connector_session_status_connector": {
+        "name": "Connector {connector_id} session status",
+        "state_attributes": {
+          "charger_id": {
+            "name": "Charger ID"
+          },
+          "connector_id": {
+            "name": "Connector ID"
+          },
+          "raw_status": {
+            "name": "Raw status"
+          },
+          "status_updated": {
+            "name": "Status updated"
+          },
+          "stop_reason": {
+            "name": "Stop reason"
+          },
+          "payment_status": {
+            "name": "Payment status"
+          }
+        },
+        "state": {
+          "initial": "Initial",
+          "pending": "Pending",
+          "scheduled": "Scheduled",
+          "waiting_for_charge": "Waiting for charge",
+          "charging": "Charging",
+          "charging_suspended": "Charging suspended",
+          "charging_suspended_awaiting_automatic_unlock": "Charging suspended awaiting automatic unlock",
+          "remove_cable": "Remove cable",
+          "finished": "Finished",
+          "error": "Error",
+          "unavailable": "Unavailable",
+          "unknown": "Unknown"
+        }
+      },
       "connector_session_power": {
         "name": "Session power"
       },
@@ -368,6 +442,18 @@
     },
     "command_failed": {
       "message": "OK command failed: {reason}"
+    },
+    "command_feature_disabled": {
+      "message": "OK reports that this feature is disabled for the account or charger."
+    },
+    "command_receipt_unavailable": {
+      "message": "OK could not prepare the charging receipt yet. The integration will try again during the next refresh."
+    },
+    "command_update_before_action": {
+      "message": "OK requires the charger state to update before this action can be completed. Try again shortly."
+    },
+    "command_update_schedule_finished_charge": {
+      "message": "OK reports that the charging session has already finished, so its schedule can no longer be updated."
     },
     "api_configuration_error": {
       "message": "OK API configuration is incomplete: {reason}"

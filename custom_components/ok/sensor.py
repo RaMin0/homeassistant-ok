@@ -26,6 +26,8 @@ from .const import (
     CONF_INCLUDE_RECEIPTS,
     CONNECTOR_STATUS_BY_RAW_STATUS,
     CONNECTOR_STATUS_OPTIONS,
+    SESSION_STATUS_BY_RAW_STATUS,
+    SESSION_STATUS_OPTIONS,
 )
 from .coordinator import OkConnectorRef, OkDataUpdateCoordinator
 from .entity import OkEntity
@@ -92,6 +94,16 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         options=list(CONNECTOR_STATUS_OPTIONS),
         value_fn=lambda coordinator, connector: _connector_status(coordinator, connector),
         attrs_fn=lambda coordinator, connector: _station_status_attrs(coordinator, connector),
+    ),
+    OkSensorEntityDescription(
+        key="connector_session_status",
+        translation_key="connector_session_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=list(SESSION_STATUS_OPTIONS),
+        value_fn=lambda coordinator, connector: _connector_session_status(coordinator, connector),
+        attrs_fn=lambda coordinator, connector: _connector_session_status_attrs(
+            coordinator, connector
+        ),
     ),
     OkSensorEntityDescription(
         key="connector_session_power",
@@ -275,7 +287,7 @@ class OkSensor(OkEntity, SensorEntity):  # type: ignore[misc]
 
     @property
     def available(self) -> bool:
-        return super().available
+        return bool(super().available)
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any]:
@@ -505,6 +517,34 @@ def _station_status_attrs(
         "raw_status": document.fields.get("status"),
         "status_updated": document.fields.get("statusUpdated"),
         "maximum_power_kw": _number(connector.connector.get("power")),
+    }
+
+
+def _connector_session_status(
+    coordinator: OkDataUpdateCoordinator,
+    connector: OkConnectorRef,
+) -> str | None:
+    status = _charging_status_field(coordinator, connector, "status")
+    if not isinstance(status, str):
+        return None
+    return SESSION_STATUS_BY_RAW_STATUS.get(status)
+
+
+def _connector_session_status_attrs(
+    coordinator: OkDataUpdateCoordinator,
+    connector: OkConnectorRef,
+) -> Mapping[str, Any]:
+    charging = coordinator.active_charging_for(connector.station_id, connector.connector_id)
+    document = coordinator.charging_status_for(charging)
+    if document is None:
+        return {}
+    return {
+        ATTR_CHARGER_ID: connector.station_id,
+        ATTR_CONNECTOR_ID: connector.connector_id,
+        "raw_status": document.fields.get("status"),
+        "status_updated": document.fields.get("statusUpdated") or document.update_time,
+        "stop_reason": document.fields.get("stopReason"),
+        "payment_status": document.fields.get("paymentStatus"),
     }
 
 

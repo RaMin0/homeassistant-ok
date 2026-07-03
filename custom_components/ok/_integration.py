@@ -243,6 +243,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     from .action import (
         async_call_ok_api,
+        charging_command_tokens,
         validate_command_response,
     )
     from .const import (
@@ -299,12 +300,15 @@ def _register_services(hass: HomeAssistant) -> None:
                 entry=target.entry,
             )
         validate_command_response(response)
+        charging_token, firestore_token = charging_command_tokens(response)
         await target.runtime.coordinator.async_request_operational_refresh()
-        target.runtime.coordinator.record_schedule_window(
+        await target.runtime.coordinator.async_record_schedule_window(
             target.station_id,
             target.connector_id,
             scheduled_start,
             scheduled_end,
+            charging_token=charging_token,
+            firestore_token=firestore_token,
         )
 
     async def update_charging_schedule(entity: Any, call: ServiceCall) -> None:
@@ -334,12 +338,15 @@ def _register_services(hass: HomeAssistant) -> None:
                 entry=target.entry,
             )
         validate_command_response(response)
+        charging_token, firestore_token = charging_command_tokens(response)
         await target.runtime.coordinator.async_request_operational_refresh()
-        target.runtime.coordinator.record_schedule_window(
+        await target.runtime.coordinator.async_record_schedule_window(
             target.station_id,
             target.connector_id,
             scheduled_start,
             scheduled_end,
+            charging_token=charging_token,
+            firestore_token=firestore_token,
         )
 
     async def cancel_charging_schedule(entity: Any, call: ServiceCall) -> None:

@@ -58,6 +58,7 @@ DEFAULT_STATUS_URL = (
     "knp-ok-app-prod/databases/(default)/documents/OK/Emsp"
 )
 _CURRENT_CHARGINGS_PATH = "v3/home-charging-station/get-current-chargings"
+_CURRENT_CHARGINGS_V2_PATH = "v2/HomeChargingStation/currentChargings"
 _MAX_ERROR_DETAIL_LENGTH = 200
 
 
@@ -470,6 +471,9 @@ class OkApiClient(_BaseOkApiClient):
     def get_chargings(self) -> list[CurrentCharging]:
         return self._expect_current_chargings(self._data_request("GET", _CURRENT_CHARGINGS_PATH))
 
+    def get_chargings_v2(self) -> list[CurrentCharging]:
+        return self._expect_current_chargings(self._data_request("GET", _CURRENT_CHARGINGS_V2_PATH))
+
     def start_charging(
         self,
         *,
@@ -838,6 +842,11 @@ class AsyncOkApiClient(_BaseOkApiClient):
             await self._data_request("GET", _CURRENT_CHARGINGS_PATH)
         )
 
+    async def get_chargings_v2(self) -> list[CurrentCharging]:
+        return self._expect_current_chargings(
+            await self._data_request("GET", _CURRENT_CHARGINGS_V2_PATH)
+        )
+
     async def start_charging(
         self,
         *,
@@ -1123,13 +1132,9 @@ def _normalize_current_charging(data: Mapping[str, Any]) -> CurrentCharging:
     if initiated_at is not None:
         charging["initiatedAt"] = initiated_at
 
-    schedules = data.get("schedules")
-    if isinstance(schedules, list):
-        charging["schedules"] = [
-            _normalize_charging_schedule(schedule)
-            for schedule in schedules
-            if isinstance(schedule, Mapping)
-        ]
+    schedules = _normalize_current_charging_schedules(data)
+    if schedules:
+        charging["schedules"] = schedules
 
     return charging
 
@@ -1173,7 +1178,39 @@ def _normalize_charging_schedule(data: Mapping[str, Any]) -> ChargingSchedule:
     if found_end:
         schedule["scheduledEnd"] = end
 
+    if (value := data.get("scheduleUpdatedAt")) and isinstance(value, str):
+        schedule["scheduleUpdatedAt"] = value
+    if (value := data.get("scheduledUpdatedAt")) and isinstance(value, str):
+        schedule["scheduledUpdatedAt"] = value
+    if (value := data.get("updatedAt")) and isinstance(value, str):
+        schedule["updatedAt"] = value
+    if (value := data.get("lastUpdated")) and isinstance(value, str):
+        schedule["lastUpdated"] = value
+    if (value := data.get("statusUpdated")) and isinstance(value, str):
+        schedule["statusUpdated"] = value
+
     return schedule
+
+
+def _normalize_current_charging_schedules(data: Mapping[str, Any]) -> list[ChargingSchedule]:
+    schedules = data.get("schedules")
+    if isinstance(schedules, list):
+        return [
+            schedule
+            for item in schedules
+            if isinstance(item, Mapping)
+            for schedule in (_normalize_charging_schedule(item),)
+            if schedule
+        ]
+
+    for key in ("schedule", "status"):
+        candidate = data.get(key)
+        if not isinstance(candidate, Mapping):
+            continue
+        schedule = _normalize_charging_schedule(candidate)
+        if schedule:
+            return [schedule]
+    return []
 
 
 def _normalize_command_response(data: JsonObject) -> JsonObject:

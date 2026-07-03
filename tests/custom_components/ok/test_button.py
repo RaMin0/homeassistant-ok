@@ -61,6 +61,11 @@ async def _test_buttons_call_ok_api_actions(tmp_path: Path) -> None:
         assert cancel.available is True
         assert force_refresh.available is True
 
+        coordinator.active_charging = {"firestoreToken": "status-token"}
+        assert stop.available is False
+        assert cancel.available is False
+        coordinator.active_charging = {"chargingToken": "charging-token"}
+
         await start.async_press()
         await stop.async_press()
         await cancel.async_press()

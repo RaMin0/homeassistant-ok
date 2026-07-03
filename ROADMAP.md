@@ -117,6 +117,8 @@ These are useful, but not blockers for the current Gold+ target:
   active schedule window and uses the first schedule from the current-chargings fallback list.
 - Expose OK smart charging plan data once the read/write API behavior is understood and can be
   tested hermetically.
+- Add optional price-aware schedule helpers or blueprints that suggest low-price charging windows
+  using the existing OK energy price timeline.
 - More dashboard examples for scheduling and price cards.
 - Additional repair issues for repeated API schema drift or unsupported account/device
   shapes.

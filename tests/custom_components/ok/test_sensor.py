@@ -10,6 +10,7 @@ from custom_components.ok.const import (
     CONF_ENABLE_ENERGY_PRICES,
     CONF_INCLUDE_RECEIPTS,
     CONNECTOR_STATUS_OPTIONS,
+    SESSION_STATUS_OPTIONS,
 )
 from custom_components.ok.sensor import SENSOR_DESCRIPTIONS, OkSensor, async_setup_entry
 from homeassistant.components.sensor import SensorDeviceClass
@@ -150,6 +151,8 @@ def test_connector_status_translations_cover_enum_options() -> None:
         "en": {
             "connector_status": "Status",
             "connector_status_connector": "Connector {connector_id} status",
+            "connector_session_status": "Session status",
+            "connector_session_status_connector": "Connector {connector_id} session status",
             "connector_session_power": "Session power",
             "connector_session_power_connector": "Connector {connector_id} session power",
             "connector_session_energy": "Session energy",
@@ -162,6 +165,8 @@ def test_connector_status_translations_cover_enum_options() -> None:
         "da": {
             "connector_status": "Status",
             "connector_status_connector": "Ladestik {connector_id} status",
+            "connector_session_status": "Sessionsstatus",
+            "connector_session_status_connector": "Ladestik {connector_id} sessionsstatus",
             "connector_session_power": "Sessionseffekt",
             "connector_session_power_connector": "Ladestik {connector_id} sessionseffekt",
             "connector_session_energy": "Sessionsenergi",
@@ -223,6 +228,22 @@ def test_connector_status_translations_cover_enum_options() -> None:
             "status_updated",
             "maximum_power_kw",
         },
+        "connector_session_status": {
+            "charger_id",
+            "connector_id",
+            "raw_status",
+            "status_updated",
+            "stop_reason",
+            "payment_status",
+        },
+        "connector_session_status_connector": {
+            "charger_id",
+            "connector_id",
+            "raw_status",
+            "status_updated",
+            "stop_reason",
+            "payment_status",
+        },
         "last_session_cost": {"no_price_reason"},
     }
     expected_option_keys = {
@@ -257,6 +278,11 @@ def test_connector_status_translations_cover_enum_options() -> None:
             assert set(states) == set(CONNECTOR_STATUS_OPTIONS)
             assert all(states[status] for status in CONNECTOR_STATUS_OPTIONS)
 
+        for key in ("connector_session_status", "connector_session_status_connector"):
+            states = entity_translations[key]["state"]
+            assert set(states) == set(SESSION_STATUS_OPTIONS)
+            assert all(states[status] for status in SESSION_STATUS_OPTIONS)
+
         for key, name in expected_names[language].items():
             assert entity_translations[key]["name"] == name
 
@@ -280,8 +306,10 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
         )
         connector = coordinator.connector_refs[0]
 
+        session_status = OkSensor(coordinator, connector, _description("connector_session_status"))
         power = OkSensor(coordinator, connector, _description("connector_session_power"))
         values = {
+            "connector_session_status": session_status.native_value,
             "connector_session_power": power.native_value,
             "connector_session_energy": OkSensor(
                 coordinator, connector, _description("connector_session_energy")
@@ -291,7 +319,19 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
             ).native_value,
         }
 
+        session_status_description = _description("connector_session_status")
+        assert session_status_description.device_class is SensorDeviceClass.ENUM
+        assert session_status_description.options == list(SESSION_STATUS_OPTIONS)
         assert power.native_unit_of_measurement is UnitOfPower.KILO_WATT
+        assert values["connector_session_status"] == "charging"
+        assert session_status.extra_state_attributes == {
+            "charger_id": "OK-CHARGER-001",
+            "connector_id": 1,
+            "raw_status": "Charging",
+            "status_updated": "2026-06-14T12:01:00Z",
+            "stop_reason": None,
+            "payment_status": "Open",
+        }
         assert values["connector_session_power"] == 3.522
         assert values["connector_session_energy"] == 5.835
         assert values["schedule_duration"] == 9000
@@ -363,9 +403,13 @@ async def _test_charging_session_sensors_use_active_charging_status(tmp_path: Pa
         coordinator.charging_schedule_event_at_map.clear()
 
         coordinator.active_charging = None
+        inactive_status = OkSensor(coordinator, connector, _description("connector_session_status"))
+        inactive_status.hass = hass
         inactive_power = OkSensor(coordinator, connector, _description("connector_session_power"))
         inactive_power.hass = hass
 
+        assert inactive_status.native_value is None
+        assert inactive_status.extra_state_attributes == {}
         assert inactive_power.native_value is None
         assert inactive_power.available is True
     finally:
@@ -561,6 +605,7 @@ async def _test_last_session_sensors_are_option_gated(tmp_path: Path) -> None:
             "1000001_last_refresh",
             "OK-CHARGER-001_charger_last_refresh",
             "OK-CHARGER-001_1_connector_status",
+            "OK-CHARGER-001_1_connector_session_status",
             "OK-CHARGER-001_1_connector_session_power",
             "OK-CHARGER-001_1_connector_session_energy",
             "OK-CHARGER-001_1_schedule_duration",
@@ -610,13 +655,13 @@ async def _test_sensor_setup_adds_new_connectors_once(tmp_path: Path) -> None:
         coordinator.listeners[0]()
         coordinator.listeners[0]()
 
-        assert len(added) == len(SENSOR_DESCRIPTIONS) + 4
+        assert len(added) == len(SENSOR_DESCRIPTIONS) + 5
         assert "OK-CHARGER-001_2_connector_status" in {entity.unique_id for entity in added}
 
         coordinator.connector_refs.append(make_connector("EVB-P99999999", 1))
         coordinator.listeners[0]()
 
-        assert len(added) == len(SENSOR_DESCRIPTIONS) * 2 + 3
+        assert len(added) == len(SENSOR_DESCRIPTIONS) * 2 + 4
         assert "EVB-P99999999_energy_price" in {entity.unique_id for entity in added}
     finally:
         await hass.async_stop()
