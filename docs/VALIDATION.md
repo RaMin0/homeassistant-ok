@@ -56,7 +56,9 @@ Expected files:
 ## Target Home Assistant Gate
 
 Run this before merging code changes that affect the integration, client, tests, CI, or release
-metadata:
+metadata. Run both commands. The Home Assistant command installs test/type tooling into a temporary
+virtual environment with access to Home Assistant's packaged dependencies, so pip does not mutate the
+Home Assistant runtime interpreter.
 
 ```bash
 docker compose run --rm \
@@ -65,8 +67,26 @@ docker compose run --rm \
   --entrypoint sh \
   homeassistant \
   -lc 'set -e
-  python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
-  python -m pip install -e ".[dev]" -r requirements-manifest.txt >/tmp/ok-pip.log && \
+  HA_VENV=/tmp/ok-ha-venv
+  python -m venv --system-site-packages "$HA_VENV" && \
+  "$HA_VENV/bin/python" -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
+  "$HA_VENV/bin/python" -m pip install -e ".[firebase]" -r requirements-manifest.txt \
+    "mypy>=1.17,<3" "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" \
+    "pytest-cov>=6.2,<8" >/tmp/ok-pip.log && \
+  MYPYPATH=/usr/src/homeassistant "$HA_VENV/bin/python" -m mypy && \
+  "$HA_VENV/bin/python" -m pytest --cov=custom_components.ok --cov-report=term-missing && \
+  "$HA_VENV/bin/python" -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id=\"ok-ci-smoke\", credentials=None); _close_owned_firestore_client(client)"'
+```
+
+```bash
+docker run --rm \
+  -e PIP_ROOT_USER_ACTION=ignore \
+  -v "$PWD":/workspace \
+  -w /workspace \
+  python:3.13-slim \
+  sh -lc 'set -e
+  python -m pip install --upgrade pip "build>=1.2,<2" "pip-audit>=2.9,<3" \
+    "ruff>=0.12,<1" "twine>=6.0,<7" >/tmp/ok-pip.log && \
   python - <<'"'"'PY'"'"' > /tmp/ok-audit-requirements.txt
 from __future__ import annotations
 
@@ -84,9 +104,6 @@ PY
   python -m pip_audit -r /tmp/ok-audit-requirements.txt --progress-spinner off && \
   python -m ruff format --check custom_components tests tools && \
   python -m ruff check custom_components tests tools && \
-  MYPYPATH=/usr/src/homeassistant python -m mypy && \
-  python -m pytest --cov=custom_components.ok --cov-report=term-missing && \
-  python -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id=\"ok-ci-smoke\", credentials=None); _close_owned_firestore_client(client)" && \
   python -m build --outdir /tmp/dist && \
   python -m twine check /tmp/dist/* && \
   python -m pip install --force-reinstall --no-deps /tmp/dist/*.whl >/tmp/ok-wheel-install.log && \
@@ -95,7 +112,8 @@ PY
 
 ## Latest Stable Home Assistant Gate
 
-Run this before public release prep and after compatibility-related changes:
+Run this before public release prep and after compatibility-related changes. Also run the Python
+quality/package command from the target gate above once.
 
 ```bash
 docker run --rm \
@@ -103,32 +121,15 @@ docker run --rm \
   -w /workspace \
   ghcr.io/home-assistant/home-assistant:stable \
   sh -lc 'set -e
-  python -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
-  python -m pip install -e ".[dev]" -r requirements-manifest.txt >/tmp/ok-pip.log && \
-  python - <<'"'"'PY'"'"' > /tmp/ok-audit-requirements.txt
-from __future__ import annotations
-
-from pathlib import Path
-import tomllib
-
-pyproject = tomllib.loads(Path("pyproject.toml").read_text())
-for dependency in pyproject["project"]["dependencies"]:
-    print(dependency)
-for line in Path("requirements-manifest.txt").read_text().splitlines():
-    stripped = line.strip()
-    if stripped and not stripped.startswith("#"):
-        print(stripped)
-PY
-  python -m pip_audit -r /tmp/ok-audit-requirements.txt --progress-spinner off && \
-  python -m ruff format --check custom_components tests tools && \
-  python -m ruff check custom_components tests tools && \
-  MYPYPATH=/usr/src/homeassistant python -m mypy && \
-  python -m pytest --cov=custom_components.ok --cov-report=term-missing && \
-  python -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id=\"ok-ci-smoke\", credentials=None); _close_owned_firestore_client(client)" && \
-  python -m build --outdir /tmp/dist && \
-  python -m twine check /tmp/dist/* && \
-  python -m pip install --force-reinstall --no-deps /tmp/dist/*.whl >/tmp/ok-wheel-install.log && \
-  cd /tmp && python -c "import custom_components.ok.api as ok_api; print(ok_api.__version__); assert \"site-packages\" in ok_api.__file__"'
+  HA_VENV=/tmp/ok-ha-venv
+  python -m venv --system-site-packages "$HA_VENV" && \
+  "$HA_VENV/bin/python" -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
+  "$HA_VENV/bin/python" -m pip install -e ".[firebase]" -r requirements-manifest.txt \
+    "mypy>=1.17,<3" "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" \
+    "pytest-cov>=6.2,<8" >/tmp/ok-pip.log && \
+  MYPYPATH=/usr/src/homeassistant "$HA_VENV/bin/python" -m mypy && \
+  "$HA_VENV/bin/python" -m pytest --cov=custom_components.ok --cov-report=term-missing && \
+  "$HA_VENV/bin/python" -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id=\"ok-ci-smoke\", credentials=None); _close_owned_firestore_client(client)"'
 ```
 
 ## Focused Tests
@@ -139,12 +140,22 @@ Examples:
 
 ```bash
 docker compose run --rm -v "$PWD":/workspace -w /workspace --entrypoint sh homeassistant \
-  -lc 'python -m pip install -e ".[dev]" >/tmp/ok-pip.log && python -m pytest tests/custom_components/ok/test_sensor.py -q'
+  -lc 'set -e
+  HA_VENV=/tmp/ok-ha-venv
+  python -m venv --system-site-packages "$HA_VENV"
+  "$HA_VENV/bin/python" -m pip install -e ".[firebase]" -r requirements-manifest.txt \
+    "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" >/tmp/ok-pip.log
+  "$HA_VENV/bin/python" -m pytest tests/custom_components/ok/test_sensor.py -q'
 ```
 
 ```bash
 docker compose run --rm -v "$PWD":/workspace -w /workspace --entrypoint sh homeassistant \
-  -lc 'python -m pip install -e ".[dev]" >/tmp/ok-pip.log && python -m pytest tests/test_client_async.py tests/test_firestore.py -q'
+  -lc 'set -e
+  HA_VENV=/tmp/ok-ha-venv
+  python -m venv --system-site-packages "$HA_VENV"
+  "$HA_VENV/bin/python" -m pip install -e ".[firebase]" -r requirements-manifest.txt \
+    "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" >/tmp/ok-pip.log
+  "$HA_VENV/bin/python" -m pytest tests/test_client_async.py tests/test_firestore.py -q'
 ```
 
 ## Publish-Surface Audit

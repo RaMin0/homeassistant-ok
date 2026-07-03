@@ -16,6 +16,7 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PIP_CACHE_DIR: .cache/pip
   PIP_ROOT_USER_ACTION: ignore
+  HA_VENV: /tmp/ok-ha-venv
 
 jobs:
   workflow-permissions:
@@ -109,9 +110,13 @@ jobs:
             pip-v2-${{ runner.os }}-ha-${{ matrix.ha-version }}-${{ github.job }}-
             pip-v2-${{ runner.os }}-ha-${{ matrix.ha-version }}-
             pip-v2-${{ runner.os }}-ha-
-      - run: python -m pip install -e ".[firebase]" -r requirements-manifest.txt "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" "pytest-cov>=6.2,<8"
-      - run: python -m pytest --cov=custom_components.ok --cov-report=term-missing
-      - run: python -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id='ok-ci-smoke', credentials=None); _close_owned_firestore_client(client)"
+      - name: Create isolated HA test environment
+        run: |
+          python -m venv --system-site-packages "$HA_VENV"
+          "$HA_VENV/bin/python" -m pip install --upgrade pip
+      - run: $HA_VENV/bin/python -m pip install -e ".[firebase]" -r requirements-manifest.txt "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" "pytest-cov>=6.2,<8"
+      - run: $HA_VENV/bin/python -m pytest --cov=custom_components.ok --cov-report=term-missing
+      - run: $HA_VENV/bin/python -c "from custom_components.ok.api._firestore import _close_owned_firestore_client, _create_default_firestore_client; client = _create_default_firestore_client(project_id='ok-ci-smoke', credentials=None); _close_owned_firestore_client(client)"
 
   type-check:
     name: Type Check / HA 2025.12.5
@@ -143,8 +148,12 @@ jobs:
             pip-v2-${{ runner.os }}-ha-2025.12.5-${{ github.job }}-
             pip-v2-${{ runner.os }}-ha-2025.12.5-
             pip-v2-${{ runner.os }}-ha-
-      - run: python -m pip install -e ".[firebase]" -r requirements-manifest.txt "mypy>=1.17,<3"
-      - run: MYPYPATH=/usr/src/homeassistant python -m mypy
+      - name: Create isolated HA type-check environment
+        run: |
+          python -m venv --system-site-packages "$HA_VENV"
+          "$HA_VENV/bin/python" -m pip install --upgrade pip
+      - run: $HA_VENV/bin/python -m pip install -e ".[firebase]" -r requirements-manifest.txt "mypy>=1.17,<3"
+      - run: MYPYPATH=/usr/src/homeassistant $HA_VENV/bin/python -m mypy
 
   quality:
     name: Python Quality / Python ${{ matrix.python-version }}
