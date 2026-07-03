@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.5.0 (2026-07-03)
+
+### Continuous Integration
+
+- Isolate Home Assistant validation tooling
+  ([`727a442`](https://github.com/RaMin0/homeassistant-ok/commit/727a442a46802de44243f461bddc2d314274be98))
+
+### Features
+
+- Improve charger session and schedule state handling
+  ([`24613a1`](https://github.com/RaMin0/homeassistant-ok/commit/24613a1db662b05174d63ad59c47944a768e5415))
+
+### Testing
+
+- Make schedule freshness test deterministic
+  ([`1658159`](https://github.com/RaMin0/homeassistant-ok/commit/1658159c24fcc076fbd1c56ad50b390c844a44da))
+
+
 ## v0.4.3 (2026-07-02)
 
 ### Bug Fixes
