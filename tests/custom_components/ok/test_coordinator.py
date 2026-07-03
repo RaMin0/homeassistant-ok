@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from typing import Any
@@ -913,7 +913,12 @@ async def _test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_i
         coordinator = OkDataUpdateCoordinator(hass, entry, client)
         await coordinator.async_config_entry_first_refresh()
         connector = coordinator.connectors()[0]
-        coordinator._current_chargings_snapshot_at = datetime(2026, 7, 3, 10, 30, tzinfo=UTC)
+        assert coordinator.data is not None
+        http_snapshot = coordinator.data.schedule_snapshots[
+            (connector.station_id, connector.connector_id)
+        ]
+        stale_update_at = http_snapshot.updated_at - timedelta(minutes=1)
+        newer_update_at = http_snapshot.updated_at + timedelta(minutes=1)
 
         assert schedule_start(coordinator, connector) == datetime(2025, 6, 5, 10, 30, tzinfo=UTC)
 
@@ -925,8 +930,8 @@ async def _test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_i
                         "status": "Scheduled",
                         "scheduledStart": "2025-06-04T10:00:00Z",
                     },
-                    create_time="2025-06-04T09:00:00Z",
-                    update_time="2025-06-04T10:01:00Z",
+                    create_time=stale_update_at.isoformat(),
+                    update_time=stale_update_at.isoformat(),
                     raw={},
                 ),
                 exists=True,
@@ -942,10 +947,10 @@ async def _test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_i
                     name=("documents/OK/Emsp/RemoteTransactions/charging-token-001"),
                     fields={
                         "status": "Scheduled",
-                        "scheduledStart": "2026-07-03T11:00:00Z",
+                        "scheduledStart": "2030-07-03T11:00:00Z",
                     },
-                    create_time="2026-07-03T10:59:00Z",
-                    update_time="2026-07-03T11:01:00Z",
+                    create_time=newer_update_at.isoformat(),
+                    update_time=newer_update_at.isoformat(),
                     raw={},
                 ),
                 exists=True,
@@ -953,7 +958,7 @@ async def _test_coordinator_ignores_stale_realtime_schedule_when_http_snapshot_i
         )
         await hass.async_block_till_done()
 
-        assert schedule_start(coordinator, connector) == datetime(2026, 7, 3, 11, 0, tzinfo=UTC)
+        assert schedule_start(coordinator, connector) == datetime(2030, 7, 3, 11, 0, tzinfo=UTC)
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()
