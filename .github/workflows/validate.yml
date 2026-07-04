@@ -19,6 +19,13 @@ env:
   HA_VENV: /tmp/ok-ha-venv
 
 jobs:
+  release-readiness:
+    name: Release Readiness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - run: python3 tools/validate_release_readiness.py
+
   workflow-permissions:
     name: Workflow Permissions
     runs-on: ubuntu-latest

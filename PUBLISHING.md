@@ -28,6 +28,7 @@ This checklist is for maintainers preparing the OK integration for public GitHub
   public GitHub repository. If the repository is made private temporarily, re-run `Validate` after it
   is public again.
 - Protect `main` and require:
+  - `Release Readiness`
   - `HACS`
   - `Hassfest`
   - `Workflow Permissions`
@@ -55,6 +56,8 @@ This checklist is for maintainers preparing the OK integration for public GitHub
     repository.
 - Keep `Workflow Permissions` required. It verifies that no workflow grants `contents: write` to
   the built-in `GITHUB_TOKEN`; release writes must use the fine-grained `RELEASE_TOKEN` secret.
+- Keep `Release Readiness` required. It verifies synchronized release metadata, release-token usage,
+  HACS zip-release expectations, release-asset contents, and public support docs.
 - Automated release jobs are guarded for public repositories. Keep the repository public when
   creating releases.
 - Add repository topics:
@@ -93,6 +96,12 @@ must include an `ok.zip` asset stamped with the released version.
    Release using `CHANGELOG.md`.
 7. The workflow checks out the released commit, builds `ok.zip` from `custom_components/ok`, and
    uploads that asset to the GitHub Release for HACS.
+
+Before merging release-impacting changes, run the release-readiness validator:
+
+```bash
+python3 tools/validate_release_readiness.py
+```
 
 Out-of-band GitHub releases created directly in the GitHub UI are not automated. If one is ever
 needed, build and upload `ok.zip` with the same version as the tag. Prefer the semantic-release
