@@ -153,8 +153,9 @@ a charging schedule start and optional end. Import, copy, dashboard usage, and e
 action examples are documented in [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md).
 
 The My Home Assistant blueprint button at the top imports the blueprint from the current `main`
-branch. If you want the exact blueprint from an installed release, copy it from the release source or
-from your installed custom component checkout.
+branch. If you want the exact blueprint from a published release, use that release tag's source
+archive or raw GitHub URL. HACS installs `ok.zip`, which contains the custom component only and does
+not place repository-level `blueprints/` files in your Home Assistant config automatically.
 
 ## ⚡ Realtime And Polling
 

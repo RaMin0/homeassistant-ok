@@ -4,6 +4,10 @@ title: "feat: "
 labels:
   - enhancement
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste passwords, tokens, `.storage` files, `secrets.yaml`, or unsanitized OK API captures.
   - type: textarea
     id: use_case
     attributes:

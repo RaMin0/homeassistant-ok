@@ -121,10 +121,14 @@ jobs:
 
       - name: Create HACS release asset
         if: ${{ steps.release.outputs.released == 'true' }}
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           python3 - <<'PY'
           from __future__ import annotations
 
+          import ast
+          import json
           import os
           from pathlib import Path
           import zipfile
@@ -142,6 +146,54 @@ jobs:
           with zipfile.ZipFile(asset_path) as archive:
               if bad_file := archive.testzip():
                   raise RuntimeError(f"Created corrupt zip member: {bad_file}")
+              names = set(archive.namelist())
+              required = {
+                  "__init__.py",
+                  "manifest.json",
+                  "api/__init__.py",
+                  "api/_version.py",
+                  "translations/en.json",
+                  "translations/da.json",
+                  "brand/icon.png",
+                  "brand/logo.png",
+              }
+              if missing := sorted(required - names):
+                  raise RuntimeError(f"HACS release asset is missing required files: {missing}")
+              forbidden = [
+                  name
+                  for name in names
+                  if "__pycache__" in Path(name).parts or name.endswith(".pyc")
+              ]
+              if forbidden:
+                  raise RuntimeError(
+                      "HACS release asset contains generated Python files: "
+                      + ", ".join(sorted(forbidden))
+                  )
+              manifest = json.loads(archive.read("manifest.json"))
+              expected_version = os.environ["RELEASE_VERSION"]
+              if manifest.get("version") != expected_version:
+                  raise RuntimeError(
+                      "HACS release asset manifest version "
+                      f"{manifest.get('version')!r} does not match release {expected_version!r}"
+                  )
+              version_module = ast.parse(archive.read("api/_version.py").decode())
+              api_version = None
+              for node in version_module.body:
+                  if (
+                      isinstance(node, ast.Assign)
+                      and len(node.targets) == 1
+                      and isinstance(node.targets[0], ast.Name)
+                      and node.targets[0].id == "__version__"
+                      and isinstance(node.value, ast.Constant)
+                      and isinstance(node.value.value, str)
+                  ):
+                      api_version = node.value.value
+                      break
+              if api_version != expected_version:
+                  raise RuntimeError(
+                      "HACS release asset bundled API version "
+                      f"{api_version!r} does not match release {expected_version!r}"
+                  )
           PY
 
       - name: Upload HACS release asset

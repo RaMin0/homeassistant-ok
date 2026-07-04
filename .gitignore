@@ -36,6 +36,14 @@ secrets.yaml
 # JavaScript tooling used for local icon research only
 node_modules/
 
+# Local API/app research artifacts
+*.apk
+*.apks
+*.aab
+
+# Local planning notes
+BACKLOG.md
+
 # Local AI/dev tooling
 .codex/
 

@@ -154,8 +154,10 @@ start og valgfri slut for planlagt opladning. Import, manuel kopi, dashboard-bru
 script action er dokumenteret i [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md).
 
 My Home Assistant blueprint-knappen øverst importerer blueprinten fra den aktuelle `main` branch.
-Hvis du vil bruge den præcise blueprint fra en installeret release, så kopiér den fra release-kilden
-eller fra din installerede custom component.
+Hvis du vil bruge den præcise blueprint fra en publiceret release, så brug den pågældende release
+tags source archive eller raw GitHub URL. HACS installerer `ok.zip`, som kun indeholder custom
+componenten, og placerer ikke repository-level `blueprints/` filer i din Home Assistant config
+automatisk.
 
 ## ⚡ Realtime Og Polling
 

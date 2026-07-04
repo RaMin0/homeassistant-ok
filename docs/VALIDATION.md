@@ -106,9 +106,30 @@ PY
   python -m ruff check custom_components tests tools && \
   python -m build --outdir /tmp/dist && \
   python -m twine check /tmp/dist/* && \
-  python -m pip install --force-reinstall --no-deps /tmp/dist/*.whl >/tmp/ok-wheel-install.log && \
-  cd /tmp && python -c "import custom_components.ok.api as ok_api; print(ok_api.__version__); assert \"site-packages\" in ok_api.__file__"'
+  python - <<'"'"'PY'"'"'
+from __future__ import annotations
+
+from pathlib import Path
+import zipfile
+
+wheel = next(Path("/tmp/dist").glob("*.whl"))
+required = {
+    "custom_components/ok/__init__.py",
+    "custom_components/ok/manifest.json",
+    "custom_components/ok/api/__init__.py",
+    "custom_components/ok/py.typed",
+    "custom_components/ok/translations/en.json",
+}
+with zipfile.ZipFile(wheel) as archive:
+    names = set(archive.namelist())
+if missing := sorted(required - names):
+    raise SystemExit(f"Wheel is missing required files: {missing}")
+PY'
 ```
+
+This repository uses Python packaging only as a validation/build mechanism for the HACS custom
+component. It does not publish a standalone importable OK client wheel while the client remains
+bundled under `custom_components/ok/api`.
 
 ## Latest Stable Home Assistant Gate
 
@@ -178,7 +199,10 @@ find . \
     -name '*.sqlite3' -o \
     -name '*.token' -o \
     -name '*.key' -o \
-    -name '*.pem' \
+    -name '*.pem' -o \
+    -name '*.apk' -o \
+    -name '*.apks' -o \
+    -name '*.aab' \
   \) -print
 ```
 
