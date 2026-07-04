@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v0.5.1 (2026-07-04)
+
+### Bug Fixes
+
+- Harden OK entity and device handling
+  ([`165ca5c`](https://github.com/RaMin0/homeassistant-ok/commit/165ca5cdf2aff48a4eb07907e3b3529f65bf88ae))
+
+- **api**: Harden OK client error handling
+  ([`5cae71e`](https://github.com/RaMin0/homeassistant-ok/commit/5cae71e9a25b186fe45e500e942ce229d4a36332))
+
+- **config-flow**: Classify OK validation failures
+  ([`514801c`](https://github.com/RaMin0/homeassistant-ok/commit/514801c26c88338db5ef75f2106649000b17f627))
+
+### Continuous Integration
+
+- Validate HACS release artifacts
+  ([`f7f1ba1`](https://github.com/RaMin0/homeassistant-ok/commit/f7f1ba1ae07d7bf9209c1c1260a9110c6d3c8faf))
+
+### Testing
+
+- Load device registry before entity registry
+  ([`e3e2384`](https://github.com/RaMin0/homeassistant-ok/commit/e3e2384d6ed1379559a0d8c2be420504b372b426))
+
+
 ## v0.5.0 (2026-07-03)
 
 ### Continuous Integration
