@@ -541,6 +541,7 @@ def test_renamed_last_session_entity_duplicate_removes_old_entry(tmp_path: Path)
 
 
 async def _test_renamed_last_session_entity_unique_id_is_migrated(tmp_path: Path) -> None:
+    from homeassistant.helpers import device_registry as dr
     from homeassistant.helpers import entity_registry as er
 
     hass = HomeAssistant(str(tmp_path))
@@ -558,6 +559,9 @@ async def _test_renamed_last_session_entity_unique_id_is_migrated(tmp_path: Path
         subentries_data=(),
     )
     hass.config_entries._entries[entry.entry_id] = entry
+    if hasattr(dr, "async_setup"):
+        dr.async_setup(hass)
+    await dr.async_load(hass)
     await er.async_load(hass)
     registry = er.async_get(hass)
 
@@ -580,6 +584,7 @@ async def _test_renamed_last_session_entity_unique_id_is_migrated(tmp_path: Path
 
 
 async def _test_renamed_last_session_entity_duplicate_removes_old_entry(tmp_path: Path) -> None:
+    from homeassistant.helpers import device_registry as dr
     from homeassistant.helpers import entity_registry as er
 
     hass = HomeAssistant(str(tmp_path))
@@ -597,6 +602,9 @@ async def _test_renamed_last_session_entity_duplicate_removes_old_entry(tmp_path
         subentries_data=(),
     )
     hass.config_entries._entries[entry.entry_id] = entry
+    if hasattr(dr, "async_setup"):
+        dr.async_setup(hass)
+    await dr.async_load(hass)
     await er.async_load(hass)
     registry = er.async_get(hass)
 
