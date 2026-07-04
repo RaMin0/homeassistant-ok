@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v0.6.0 (2026-07-04)
+
+### Continuous Integration
+
+- Add release readiness validation
+  ([`92e7485`](https://github.com/RaMin0/homeassistant-ok/commit/92e74850466e101ae0c74cf1e71a9f2f15ec6695))
+
+### Documentation
+
+- Expand public support guidance
+  ([`6db9bfe`](https://github.com/RaMin0/homeassistant-ok/commit/6db9bfe21e37ef6fd20405498b5029e684ee596b))
+
+### Features
+
+- Expose realtime watcher health diagnostics
+  ([`fe8f7b4`](https://github.com/RaMin0/homeassistant-ok/commit/fe8f7b43126b37579c18fd19afa99c59922fa71d))
+
+### Testing
+
+- Cover OK schedule and Firestore contracts
+  ([`d55d6f9`](https://github.com/RaMin0/homeassistant-ok/commit/d55d6f9bda31e0c606fd8e274fb880f3fee7195e))
+
+
 ## v0.5.1 (2026-07-04)
 
 ### Bug Fixes
