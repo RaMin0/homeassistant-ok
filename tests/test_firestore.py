@@ -10,6 +10,7 @@ from api import (
     AsyncOkApiClient,
     OkApiClient,
     OkConfigurationError,
+    OkResponseError,
     parse_nanoseconds_timestamp,
 )
 from api._firestore import (
@@ -70,6 +71,17 @@ def test_decode_firestore_value_handles_edge_shapes() -> None:
     assert decode_firestore_value({"unknownValue": "bad"}) == {}
     assert decode_firestore_document({"fields": []}).fields == {}
     assert charging_transaction_document_path("token") == "OK/Emsp/RemoteTransactions/token"
+
+
+def test_firestore_numeric_decode_errors_are_typed() -> None:
+    with pytest.raises(OkResponseError, match="timestamp"):
+        parse_nanoseconds_timestamp("not-a-number")
+    with pytest.raises(OkResponseError, match="integerValue"):
+        decode_firestore_value({"integerValue": "not-a-number"})
+    with pytest.raises(OkResponseError, match="doubleValue"):
+        decode_firestore_value({"doubleValue": "not-a-number"})
+    with pytest.raises(OkResponseError, match="geoPointValue"):
+        decode_firestore_value({"geoPointValue": {"latitude": "bad", "longitude": 12.0}})
 
 
 def test_default_firestore_client_uses_anonymous_credentials(monkeypatch) -> None:

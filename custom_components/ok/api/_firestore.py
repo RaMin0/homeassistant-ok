@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from importlib import import_module
 from typing import Any, Protocol, cast
 
-from ._errors import OkConfigurationError
+from ._errors import OkConfigurationError, OkResponseError
 from ._models import FirestoreDocument, FirestoreWatchEvent, JsonObject, JsonValue
 
 DEFAULT_FIRESTORE_PROJECT_ID = "knp-ok-app-prod"
@@ -123,7 +123,10 @@ def charging_transaction_document_path(charging_token: str) -> str:
 
 
 def parse_nanoseconds_timestamp(value: str | int) -> str:
-    nanoseconds = int(value)
+    try:
+        nanoseconds = int(value)
+    except (TypeError, ValueError) as exc:
+        raise OkResponseError("Firestore timestamp value is not a valid integer") from exc
     seconds, nanos = divmod(nanoseconds, 1_000_000_000)
     timestamp = datetime.fromtimestamp(seconds, tz=UTC).replace(microsecond=nanos // 1_000)
     return timestamp.isoformat().replace("+00:00", "Z")
@@ -135,9 +138,15 @@ def decode_firestore_value(value: Mapping[str, Any]) -> JsonValue:
     if "booleanValue" in value:
         return bool(value["booleanValue"])
     if "integerValue" in value:
-        return int(str(value["integerValue"]))
+        try:
+            return int(str(value["integerValue"]))
+        except (TypeError, ValueError) as exc:
+            raise OkResponseError("Firestore integerValue is not a valid integer") from exc
     if "doubleValue" in value:
-        return float(str(value["doubleValue"]))
+        try:
+            return float(str(value["doubleValue"]))
+        except (TypeError, ValueError) as exc:
+            raise OkResponseError("Firestore doubleValue is not a valid number") from exc
     if "timestampValue" in value:
         return str(value["timestampValue"])
     if "stringValue" in value:
@@ -149,10 +158,15 @@ def decode_firestore_value(value: Mapping[str, Any]) -> JsonValue:
     if "geoPointValue" in value:
         point = value["geoPointValue"]
         if isinstance(point, Mapping):
-            return {
-                "latitude": float(str(point.get("latitude", 0))),
-                "longitude": float(str(point.get("longitude", 0))),
-            }
+            try:
+                return {
+                    "latitude": float(str(point.get("latitude", 0))),
+                    "longitude": float(str(point.get("longitude", 0))),
+                }
+            except (TypeError, ValueError) as exc:
+                raise OkResponseError(
+                    "Firestore geoPointValue contains invalid coordinates"
+                ) from exc
         return {}
     if "arrayValue" in value:
         array_value = value["arrayValue"]

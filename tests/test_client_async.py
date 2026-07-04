@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 
+import api._client as client_module
 import httpx
 import pytest
 from api import (
@@ -10,6 +11,7 @@ from api import (
     OkCommandError,
     OkConfigurationError,
     OkConnectionError,
+    OkResponseError,
     OkTimeoutError,
 )
 
@@ -247,6 +249,7 @@ def test_async_command_failure_raises_typed_client_error() -> None:
             return httpx.Response(
                 200,
                 json={"result": "Rejected", "errorcode": 42, "errordescription": "busy"},
+                headers={"trace-id": "async-command-trace"},
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
@@ -264,6 +267,8 @@ def test_async_command_failure_raises_typed_client_error() -> None:
 
         assert str(error.value) == "OK command failed: busy"
         assert error.value.error_code == 42
+        assert error.value.status_code == 200
+        assert error.value.request_id == "async-command-trace"
 
     asyncio.run(scenario())
 
@@ -324,5 +329,75 @@ def test_async_transport_errors_are_mapped_to_client_exceptions() -> None:
             )
             with pytest.raises(OkConnectionError):
                 await client.get_stations()
+
+        async def request_error_handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.RequestError("request failed", request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(request_error_handler)) as (
+            http_client
+        ):
+            client = AsyncOkApiClient(
+                app_id="APP",
+                app_secret="SECRET",
+                device_id="device-id",
+                http_client=http_client,
+                timestamp_provider=lambda: 456,
+            )
+            with pytest.raises(OkConnectionError) as error:
+                await client.get_stations()
+        assert str(error.value) == "request failed"
+
+    asyncio.run(scenario())
+
+
+def test_async_invalid_urls_are_mapped_to_configuration_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200))
+        ) as http_client:
+
+            async def request(*args: object, **kwargs: object) -> httpx.Response:
+                raise httpx.InvalidURL("bad url")
+
+            monkeypatch.setattr(http_client, "request", request)
+            client = AsyncOkApiClient(
+                app_id="APP",
+                app_secret="SECRET",
+                device_id="device-id",
+                http_client=http_client,
+                timestamp_provider=lambda: 456,
+            )
+            with pytest.raises(OkConfigurationError):
+                await client.get_stations()
+
+    asyncio.run(scenario())
+
+
+def test_async_response_decoding_errors_are_mapped_to_response_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def scenario() -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=[])
+
+        def parse_response(response: httpx.Response) -> object:
+            raise httpx.DecodingError("broken decoder")
+
+        monkeypatch.setattr(client_module, "_parse_response", parse_response)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+            client = AsyncOkApiClient(
+                app_id="APP",
+                app_secret="SECRET",
+                device_id="device-id",
+                http_client=http_client,
+                timestamp_provider=lambda: 456,
+            )
+            with pytest.raises(OkResponseError) as error:
+                await client.get_stations()
+
+        assert str(error.value) == "broken decoder"
 
     asyncio.run(scenario())

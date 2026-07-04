@@ -55,12 +55,18 @@ class OkCommandError(OkApiError):
         error_code: object | None = None,
         error_description: str | None = None,
         payload: Mapping[str, Any] | None = None,
+        status_code: int | None = None,
+        headers: Mapping[str, str] | None = None,
+        request_id: str | None = None,
     ) -> None:
         super().__init__(message)
         self.result = result
         self.error_code = error_code
         self.error_description = error_description
         self.payload = dict(payload or {})
+        self.status_code = status_code
+        self.headers = dict(headers or {})
+        self.request_id = request_id
 
 
 class OkStatusError(OkApiError):

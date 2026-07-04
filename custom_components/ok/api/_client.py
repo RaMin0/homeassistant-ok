@@ -252,6 +252,9 @@ class _BaseOkApiClient:
             error_code=payload.get("errorcode"),
             error_description=reason,
             payload=payload,
+            status_code=response.status_code if isinstance(response, _OkApiResponse) else None,
+            headers=response.headers if isinstance(response, _OkApiResponse) else None,
+            request_id=response.request_id if isinstance(response, _OkApiResponse) else None,
         )
 
     def _expect_json_object(
@@ -665,13 +668,23 @@ class OkApiClient(_BaseOkApiClient):
                 json=json_body,
                 timeout=self.config.timeout,
             )
+            return _parse_response(response)
         except httpx.TimeoutException as exc:
             raise OkTimeoutError(_transport_error_message(exc, "OK API request timed out")) from exc
         except httpx.TransportError as exc:
             raise OkConnectionError(
                 _transport_error_message(exc, "OK API connection failed")
             ) from exc
-        return _parse_response(response)
+        except httpx.DecodingError as exc:
+            raise OkResponseError(
+                _transport_error_message(exc, "OK API response decoding failed")
+            ) from exc
+        except httpx.InvalidURL as exc:
+            raise OkConfigurationError(
+                _transport_error_message(exc, "OK API URL is invalid")
+            ) from exc
+        except httpx.RequestError as exc:
+            raise OkConnectionError(_transport_error_message(exc, "OK API request failed")) from exc
 
 
 class AsyncOkApiClient(_BaseOkApiClient):
@@ -1056,13 +1069,23 @@ class AsyncOkApiClient(_BaseOkApiClient):
                 json=json_body,
                 timeout=self.config.timeout,
             )
+            return _parse_response(response)
         except httpx.TimeoutException as exc:
             raise OkTimeoutError(_transport_error_message(exc, "OK API request timed out")) from exc
         except httpx.TransportError as exc:
             raise OkConnectionError(
                 _transport_error_message(exc, "OK API connection failed")
             ) from exc
-        return _parse_response(response)
+        except httpx.DecodingError as exc:
+            raise OkResponseError(
+                _transport_error_message(exc, "OK API response decoding failed")
+            ) from exc
+        except httpx.InvalidURL as exc:
+            raise OkConfigurationError(
+                _transport_error_message(exc, "OK API URL is invalid")
+            ) from exc
+        except httpx.RequestError as exc:
+            raise OkConnectionError(_transport_error_message(exc, "OK API request failed")) from exc
 
 
 def _parse_response(response: httpx.Response) -> _OkApiResponse:

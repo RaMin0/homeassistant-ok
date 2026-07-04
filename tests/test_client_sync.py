@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 
+import api._client as client_module
 import httpx
 import pytest
 from api import (
@@ -469,9 +470,11 @@ def test_command_failure_raises_typed_client_error() -> None:
     ]
 
     def handler(request: httpx.Request) -> httpx.Response:
+        request_count = len(responses)
         return httpx.Response(
             200,
             json=responses.pop(0),
+            headers={"trace-id": f"command-trace-{request_count}"},
         )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
@@ -493,8 +496,11 @@ def test_command_failure_raises_typed_client_error() -> None:
     assert error.value.error_code == 42
     assert error.value.error_description == "busy"
     assert error.value.payload["result"] == "Rejected"
+    assert error.value.status_code == 200
+    assert error.value.request_id == "command-trace-2"
     assert str(error_without_result.value) == "OK command failed: still busy"
     assert error_without_result.value.error_code == 43
+    assert error_without_result.value.request_id == "command-trace-1"
 
 
 def test_missing_friendly_device_id_is_explicit() -> None:
@@ -641,6 +647,66 @@ def test_transport_errors_are_mapped_to_client_exceptions() -> None:
         )
         with pytest.raises(OkConnectionError):
             client.get_stations()
+
+    def request_error_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.RequestError("request failed", request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(request_error_handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+        with pytest.raises(OkConnectionError) as error:
+            client.get_stations()
+    assert str(error.value) == "request failed"
+
+
+def test_invalid_urls_are_mapped_to_configuration_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200))) as (
+        http_client
+    ):
+
+        def request(*args: object, **kwargs: object) -> httpx.Response:
+            raise httpx.InvalidURL("bad url")
+
+        monkeypatch.setattr(http_client, "request", request)
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+        with pytest.raises(OkConfigurationError):
+            client.get_stations()
+
+
+def test_response_decoding_errors_are_mapped_to_response_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[])
+
+    def parse_response(response: httpx.Response) -> object:
+        raise httpx.DecodingError("broken decoder")
+
+    monkeypatch.setattr(client_module, "_parse_response", parse_response)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+        with pytest.raises(OkResponseError) as error:
+            client.get_stations()
+
+    assert str(error.value) == "broken decoder"
 
 
 def test_invalid_json_response_raises_response_error() -> None:
