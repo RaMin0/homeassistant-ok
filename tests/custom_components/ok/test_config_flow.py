@@ -10,7 +10,12 @@ from unittest.mock import patch
 import custom_components.ok.config_flow  # noqa: F401
 import pytest_asyncio
 import voluptuous_serialize
-from custom_components.ok.api import AsyncOkApiClient, OkConnectionError, OkStatusError
+from custom_components.ok.api import (
+    AsyncOkApiClient,
+    OkAuthenticationError,
+    OkConnectionError,
+    OkStatusError,
+)
 from custom_components.ok.config_flow import CannotConnectError, _account_id, _title
 from custom_components.ok.const import (
     APP_SECRET,
@@ -100,11 +105,85 @@ async def test_user_flow_rejects_invalid_auth(hass: HomeAssistant) -> None:
     assert result["errors"] == {"base": "invalid_auth"}
 
 
+async def test_user_flow_rejects_typed_login_auth_failures(hass: HomeAssistant) -> None:
+    async def login_invalid(
+        self: AsyncOkApiClient,
+        email: str,
+        password: str,
+    ) -> dict[str, Any]:
+        raise OkAuthenticationError("invalid credentials", status_code=401, headers={}, payload={})
+
+    with _patch_validation(login=login_invalid):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_USER},
+            data={CONF_EMAIL: "user@example.test", CONF_PASSWORD: "bad-password"},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_auth"}
+
+
+async def test_user_flow_treats_login_server_status_errors_as_cannot_connect(
+    hass: HomeAssistant,
+) -> None:
+    async def login_error(
+        self: AsyncOkApiClient,
+        email: str,
+        password: str,
+    ) -> dict[str, Any]:
+        raise OkStatusError("server failed", status_code=500, headers={}, payload={})
+
+    with _patch_validation(login=login_error):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_USER},
+            data={CONF_EMAIL: "user@example.test", CONF_PASSWORD: "secret"},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
 async def test_user_flow_handles_cannot_connect(hass: HomeAssistant) -> None:
     async def register_device_error(self: AsyncOkApiClient, **kwargs: Any) -> dict[str, Any]:
         raise OkConnectionError("timeout")
 
     with _patch_validation(register_device=register_device_error):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_USER},
+            data={CONF_EMAIL: "user@example.test", CONF_PASSWORD: "secret"},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_user_flow_treats_registration_status_errors_as_cannot_connect(
+    hass: HomeAssistant,
+) -> None:
+    async def register_device_error(self: AsyncOkApiClient, **kwargs: Any) -> dict[str, Any]:
+        raise OkStatusError("app registration rejected", status_code=403, headers={}, payload={})
+
+    with _patch_validation(register_device=register_device_error):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_USER},
+            data={CONF_EMAIL: "user@example.test", CONF_PASSWORD: "secret"},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_user_flow_treats_settings_status_errors_as_cannot_connect(
+    hass: HomeAssistant,
+) -> None:
+    async def settings_error(self: AsyncOkApiClient) -> dict[str, Any]:
+        raise OkStatusError("settings rejected", status_code=403, headers={}, payload={})
+
+    with _patch_validation(settings=settings_error):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": config_entries.SOURCE_USER},

@@ -19,6 +19,8 @@ from .api import (
     DeviceSettingsResponse,
     OkApiConfig,
     OkApiError,
+    OkAuthenticationError,
+    OkPermissionDeniedError,
     OkStatusError,
 )
 from .const import (
@@ -288,12 +290,27 @@ async def _validate_login(
     client = AsyncOkApiClient(config=config, http_client=get_async_client(hass))
     try:
         if not config.app_id or not config.device_id:
-            await client.register_device(app_id=config.app_id)
-        await client.login(data[CONF_EMAIL], data[CONF_PASSWORD])
-        settings = await client.get_device_settings()
-    except OkStatusError as err:
-        if err.status_code in (400, 401, 403):
+            try:
+                await client.register_device(app_id=config.app_id)
+            except OkStatusError as err:
+                raise CannotConnectError from err
+        try:
+            await client.login(data[CONF_EMAIL], data[CONF_PASSWORD])
+        except (OkAuthenticationError, OkPermissionDeniedError) as err:
             raise InvalidAuthError from err
+        except OkStatusError as err:
+            if err.status_code in (400, 401, 403):
+                raise InvalidAuthError from err
+            raise CannotConnectError from err
+        try:
+            settings = await client.get_device_settings()
+        except OkStatusError as err:
+            raise CannotConnectError from err
+    except InvalidAuthError:
+        raise
+    except CannotConnectError:
+        raise
+    except OkStatusError as err:
         raise CannotConnectError from err
     except OkApiError as err:
         raise CannotConnectError from err
