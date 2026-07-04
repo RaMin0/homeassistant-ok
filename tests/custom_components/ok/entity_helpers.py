@@ -192,11 +192,16 @@ class EntityTestCoordinator:
             "charging_receipts": "2026-06-14T11:58:00+00:00",
             "trigger": "automatic",
             "in_progress": False,
+            "realtime_status": "active",
+            "realtime_active_watchers": 2,
+            "realtime_retrying_watchers": 0,
+            "realtime_unavailable": False,
         }
         self.charger_poll_attrs = {
             "charger_status": "2026-06-14T11:59:00+00:00",
             "session_status": None,
             "session_receipt": None,
+            "realtime_status": "active",
         }
         self._charger_last_refresh = datetime(2026, 6, 14, 11, 59, tzinfo=UTC)
         self.listeners: list[Any] = []
@@ -361,6 +366,7 @@ class EntityTestCoordinator:
             "charger_status": None,
             "session_status": None,
             "session_receipt": None,
+            "realtime_status": None,
         }
 
     def charger_last_refresh(self, station_id: str) -> datetime | None:

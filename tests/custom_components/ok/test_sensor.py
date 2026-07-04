@@ -208,11 +208,16 @@ def test_connector_status_translations_cover_enum_options() -> None:
             "charging_receipts",
             "trigger",
             "in_progress",
+            "realtime_status",
+            "realtime_active_watchers",
+            "realtime_retrying_watchers",
+            "realtime_unavailable",
         },
         "charger_last_refresh": {
             "charger_status",
             "session_status",
             "session_receipt",
+            "realtime_status",
         },
         "connector_status": {
             "charger_id",
@@ -488,6 +493,10 @@ async def _test_last_refresh_sensor(tmp_path: Path) -> None:
             "charging_receipts": "2026-06-14T11:58:00+00:00",
             "trigger": "automatic",
             "in_progress": False,
+            "realtime_status": "active",
+            "realtime_active_watchers": 2,
+            "realtime_retrying_watchers": 0,
+            "realtime_unavailable": False,
         }
         assert "charger_status" not in entity.extra_state_attributes
         assert "session_status" not in entity.extra_state_attributes
@@ -528,6 +537,7 @@ async def _test_charger_last_refresh_sensor(tmp_path: Path) -> None:
             "charger_status": "2026-06-14T11:59:00+00:00",
             "session_status": None,
             "session_receipt": None,
+            "realtime_status": "active",
         }
 
         coordinator._charger_last_refresh = None

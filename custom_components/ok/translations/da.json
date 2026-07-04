@@ -188,6 +188,18 @@
           },
           "in_progress": {
             "name": "I gang"
+          },
+          "realtime_status": {
+            "name": "Realtidsstatus"
+          },
+          "realtime_active_watchers": {
+            "name": "Aktive realtidslyttere"
+          },
+          "realtime_retrying_watchers": {
+            "name": "Realtidslyttere med genforsøg"
+          },
+          "realtime_unavailable": {
+            "name": "Realtid ikke tilgængelig"
           }
         }
       },
@@ -202,6 +214,9 @@
           },
           "session_receipt": {
             "name": "Sessionskvittering"
+          },
+          "realtime_status": {
+            "name": "Realtidsstatus"
           }
         }
       },
@@ -475,6 +490,10 @@
     "realtime_updates_unavailable": {
       "title": "OK-realtidsopdateringer er ikke tilgængelige",
       "description": "OK-ladestatus fortsætter med at blive opdateret via polling, men Firestore-realtidsopdateringer kunne ikke startes: {reason}. Hvis du kun vil bruge polling, skal du åbne OK-integrationens indstillinger og slå Avanceret > Realtidsopdateringer fra."
+    },
+    "realtime_updates_retrying": {
+      "title": "OK-realtidsopdateringer prøver igen",
+      "description": "OK-ladestatus fortsætter med at blive opdateret via polling, men realtidslytteren for {watch} har fejlet {attempts} gange. Integrationen fortsætter med at prøve igen med backoff."
     }
   },
   "services": {

@@ -79,7 +79,8 @@ safe:
 - Watch callbacks schedule work back onto Home Assistant's event loop.
 - Watch failures use bounded retry/backoff.
 - A repair issue is created when realtime updates cannot start because Firestore runtime support is
-  missing or misconfigured. Transient watcher failures retry with bounded backoff instead.
+  missing or misconfigured. A warning repair is also created after repeated watcher startup
+  failures. Polling fallback remains active while watchers retry.
 
 Do not move sync Firestore watch work onto the event loop.
 

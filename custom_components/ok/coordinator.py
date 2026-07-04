@@ -58,6 +58,8 @@ _REALTIME_REFRESH_DELAY = 5
 _REALTIME_WATCH_RETRY_BASE_DELAY = 15
 _REALTIME_WATCH_RETRY_MAX_DELAY = 300
 _REALTIME_WATCH_ISSUE_ID = "realtime_updates_unavailable"
+_REALTIME_WATCH_RETRYING_ISSUE_ID = "realtime_updates_retrying"
+_REALTIME_WATCH_REPAIR_THRESHOLD = 3
 _STALE_DEVICE_REMOVE_THRESHOLD = 3
 _CHARGING_SCHEDULE_FIELDS = ("scheduledStart", "scheduledEnd")
 type RefreshTrigger = Literal[
@@ -94,6 +96,7 @@ _POLL_TRIGGER_ATTRIBUTE_VALUES: Mapping[RefreshTrigger, str] = {
 }
 
 type _RealtimeWatchKey = tuple[Literal["charging"], str] | tuple[Literal["station"], str, int]
+type _RealtimeHealthStatus = Literal["active", "disabled", "polling", "retrying", "unavailable"]
 type _ScheduleSnapshotSource = Literal[
     "current_chargings",
     "current_chargings_v2",
@@ -662,6 +665,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                 else None
             ),
             "in_progress": self.refresh_in_progress,
+            **self._realtime_health_attributes,
         }
 
     @property
@@ -749,11 +753,62 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             )
             for connector in connectors
         }
+        realtime_status = {
+            connector.connector_id: self._connector_realtime_status(
+                station_id,
+                connector.connector_id,
+            )
+            for connector in connectors
+        }
         return {
             "charger_status": _single_connector_refresh_value(charger_status),
             "session_status": _single_connector_refresh_value(session_status),
             "session_receipt": self._poll_attribute(_session_receipt_source(station_id)),
+            "realtime_status": _single_connector_refresh_value(realtime_status),
         }
+
+    @property
+    def _realtime_health_attributes(self) -> Mapping[str, Any]:
+        return {
+            "realtime_status": self._realtime_health_status,
+            "realtime_active_watchers": len(self._realtime_watch_handles),
+            "realtime_retrying_watchers": len(self._realtime_watch_failures),
+            "realtime_unavailable": self._realtime_watches_unavailable,
+        }
+
+    @property
+    def _realtime_health_status(self) -> _RealtimeHealthStatus:
+        if not self._realtime_updates_enabled:
+            return "disabled"
+        if self._realtime_watches_unavailable:
+            return "unavailable"
+        if self._realtime_watch_failures:
+            return "retrying"
+        if self._realtime_watch_handles:
+            return "active"
+        return "polling"
+
+    def _connector_realtime_status(
+        self,
+        station_id: str,
+        connector_id: int,
+    ) -> _RealtimeHealthStatus:
+        if not self._realtime_updates_enabled:
+            return "disabled"
+        if self._realtime_watches_unavailable:
+            return "unavailable"
+
+        keys: list[_RealtimeWatchKey] = [("station", station_id, connector_id)]
+        charging = self.active_charging_for(station_id, connector_id)
+        if charging is not None:
+            if (token := _charging_status_token(charging)) is not None:
+                keys.append(("charging", token))
+
+        if any(key in self._realtime_watch_failures for key in keys):
+            return "retrying"
+        if any(key in self._realtime_watch_handles for key in keys):
+            return "active"
+        return "polling"
 
     def _charger_poll_attribute_sources(self, station_id: str) -> Iterable[str]:
         connectors = sorted(
@@ -1073,6 +1128,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             handle.task.cancel()
             self.hass.async_create_task(handle.subscription.aclose())
         self._realtime_watch_failures.clear()
+        self._async_delete_realtime_retrying_issue()
 
     async def async_close_realtime_watches(self) -> None:
         """Close active Firestore realtime subscriptions without blocking the event loop."""
@@ -1082,6 +1138,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         await self._async_cancel_realtime_refresh_task()
         await self._async_close_realtime_watch_handles(self._drain_realtime_watch_handles())
         self._realtime_watch_failures.clear()
+        self._async_delete_realtime_retrying_issue()
 
     async def _async_sync_realtime_watches(self, data: OkData) -> None:
         """Keep Firestore realtime watchers aligned with current coordinator data."""
@@ -1091,6 +1148,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             await self._async_cancel_realtime_refresh_task()
             await self._async_close_realtime_watch_handles(self._drain_realtime_watch_handles())
             self._realtime_watch_failures.clear()
+            self._async_delete_realtime_retrying_issue()
             if self._realtime_watches_unavailable:
                 self._async_delete_realtime_unavailable_issue()
             self._realtime_watches_unavailable = False
@@ -1106,6 +1164,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         ]
         for key in set(self._realtime_watch_failures) - desired:
             self._realtime_watch_failures.pop(key, None)
+        if not self._realtime_watch_failures:
+            self._async_delete_realtime_retrying_issue()
         await self._async_close_realtime_watch_handles(stale_handles)
 
         now = monotonic()
@@ -1137,6 +1197,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             return
         except Exception as err:
             failure = self._record_realtime_watch_failure(key)
+            self._async_report_realtime_retrying_issue(key, failure)
             log_level = logging.INFO if failure.attempts == 1 else logging.DEBUG
             if _LOGGER.isEnabledFor(log_level):
                 _LOGGER.log(
@@ -1165,6 +1226,8 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
         )
         self._async_delete_realtime_unavailable_issue()
         if self._realtime_watch_failures.pop(key, None) is not None:
+            if not self._realtime_watch_failures:
+                self._async_delete_realtime_retrying_issue()
             _LOGGER.info(
                 "OK Firestore realtime watcher for %s recovered",
                 _realtime_watch_label(key),
@@ -1188,9 +1251,41 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
 
         ir.async_delete_issue(self.hass, DOMAIN, self._realtime_watch_issue_id)
 
+    def _async_report_realtime_retrying_issue(
+        self,
+        key: _RealtimeWatchKey,
+        failure: _RealtimeWatchFailure,
+    ) -> None:
+        if failure.attempts < _REALTIME_WATCH_REPAIR_THRESHOLD:
+            return
+
+        from homeassistant.helpers import issue_registry as ir
+
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._realtime_watch_retrying_issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=_REALTIME_WATCH_RETRYING_ISSUE_ID,
+            translation_placeholders={
+                "attempts": str(failure.attempts),
+                "watch": _realtime_watch_label(key),
+            },
+        )
+
+    def _async_delete_realtime_retrying_issue(self) -> None:
+        from homeassistant.helpers import issue_registry as ir
+
+        ir.async_delete_issue(self.hass, DOMAIN, self._realtime_watch_retrying_issue_id)
+
     @property
     def _realtime_watch_issue_id(self) -> str:
         return f"{_REALTIME_WATCH_ISSUE_ID}_{self.entry.entry_id}"
+
+    @property
+    def _realtime_watch_retrying_issue_id(self) -> str:
+        return f"{_REALTIME_WATCH_RETRYING_ISSUE_ID}_{self.entry.entry_id}"
 
     def _record_realtime_watch_failure(self, key: _RealtimeWatchKey) -> _RealtimeWatchFailure:
         previous = self._realtime_watch_failures.get(key)
@@ -1299,6 +1394,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                 self._realtime_watch_handles.pop(key, None)
                 await self._async_close_realtime_subscription(key, subscription)
                 failure = self._record_realtime_watch_failure(key)
+                self._async_report_realtime_retrying_issue(key, failure)
                 _LOGGER.info(
                     "OK Firestore realtime watcher for %s stopped: %s. Retrying in %s seconds",
                     _realtime_watch_label(key),

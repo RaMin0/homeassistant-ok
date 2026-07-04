@@ -19,7 +19,7 @@ IDs are illustrative. Stable identity comes from each entity's `unique_id`.
 - Use `session` for an active or recent charging session.
 - Use `last_session_*` for receipt-backed data from the most recent completed session.
 - Use `schedule_*` for active schedule fields.
-- Use `last_refresh` for diagnostics about API polling.
+- Use `last_refresh` for diagnostics about API polling and realtime watcher health.
 - Do not reintroduce `station` in user-visible names unless the OK API field itself is being
   described internally.
 
@@ -42,8 +42,8 @@ for single-connector chargers.
 | Platform | Key | Scope | Default | Category | Main data source |
 | --- | --- | --- | --- | --- | --- |
 | Sensor | `energy_price` | Charger | Enabled | None | OK price REST endpoint for the charger. |
-| Sensor | `last_refresh` | Account | Enabled | Diagnostic | Coordinator refresh timestamps. |
-| Sensor | `charger_last_refresh` | Charger | Enabled | Diagnostic | Connector status/session snapshot and receipt refresh timestamps. |
+| Sensor | `last_refresh` | Account | Enabled | Diagnostic | Coordinator refresh timestamps and realtime watcher health. |
+| Sensor | `charger_last_refresh` | Charger | Enabled | Diagnostic | Connector status/session snapshot, receipt refresh timestamps, and charger realtime status. |
 | Sensor | `connector_status` | Connector | Enabled | None | Firestore charger status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_status` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_power` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
@@ -159,9 +159,17 @@ Account-level diagnostic attributes:
 - `charging_receipts`
 - `trigger`
 - `in_progress`
+- `realtime_status`
+- `realtime_active_watchers`
+- `realtime_retrying_watchers`
+- `realtime_unavailable`
 
 These attributes are intentionally account-level. Charger-specific refresh timestamps belong on
 `charger_last_refresh`.
+
+`realtime_status` can be `active`, `disabled`, `polling`, `retrying`, or `unavailable`. Polling
+fallback remains active for HTTP-backed data and for realtime-backed snapshots when watchers are
+disabled, retrying, or unavailable.
 
 ### `charger_last_refresh`
 
@@ -170,6 +178,7 @@ Charger-level diagnostic attributes:
 - `charger_status`
 - `session_status`
 - `session_receipt`
+- `realtime_status`
 
 For multi-connector chargers, connector-specific refresh values may be represented by connector ID
 in the attribute value.

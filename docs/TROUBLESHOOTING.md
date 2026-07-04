@@ -38,7 +38,8 @@ Unavailable entities usually mean one of these conditions:
 Connector and charging status use OK Firestore watches when realtime updates are enabled and the
 watcher starts successfully. If Firestore runtime support is missing or misconfigured, Home
 Assistant creates a non-fixable repair issue and the integration continues with polling. Transient
-watcher failures retry with bounded backoff.
+watcher failures retry with bounded backoff. If a watcher keeps failing, Home Assistant creates a
+warning repair while the integration continues to poll as a fallback.
 
 ## How Realtime Updates Work
 
@@ -70,10 +71,37 @@ Assistant raises a repair issue and the integration keeps polling instead.
 If updates look delayed:
 
 - Confirm **Realtime updates** is enabled in the integration options.
+- Inspect the account **Last refresh** diagnostic entity. Its realtime attributes show whether
+  watchers are active, disabled, retrying, or unavailable.
+- Inspect the charger **Last refresh** diagnostic entity for connector-specific realtime status.
 - Check logs for Firestore watcher startup or retry messages.
 - Confirm polling still updates the entity after a refresh cycle.
 - Avoid repeatedly pressing force refresh; it bypasses freshness windows and can increase API load.
   Do not put it in recurring automations.
+
+## Diagnostic Entities
+
+The account-level **Last refresh** diagnostic entity shows when shared OK API areas last refreshed:
+
+- Account settings.
+- Charger overview.
+- Energy prices.
+- Active sessions.
+- Charging receipts.
+- Refresh trigger and whether a refresh is in progress.
+- Realtime status, active watcher count, retrying watcher count, and whether realtime is
+  unavailable.
+
+Each charger also has a disabled-by-default **Last refresh** diagnostic entity for charger-specific
+sources:
+
+- Charger status.
+- Session status.
+- Session receipt.
+- Realtime status for that charger's connector watches.
+
+Use these entities to verify whether a problem is limited to realtime updates, polling, schedules,
+prices, or receipts before opening an issue.
 
 ## Schedule, Stop, Update, Or Cancel Fails
 

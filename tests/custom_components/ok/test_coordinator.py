@@ -757,6 +757,10 @@ async def _test_coordinator_polls_status_snapshots_when_realtime_option_is_disab
         assert client.station_watch_attempts == 0
         assert client.station_watch_callbacks == {}
         assert client.charging_watch_callbacks == {}
+        assert coordinator.poll_attributes["realtime_status"] == "disabled"
+        assert coordinator.charger_poll_attributes("OK-CHARGER-001")["realtime_status"] == (
+            "disabled"
+        )
         assert coordinator.station_status_for("OK-CHARGER-001", 1).fields["status"] == "Charging"
 
         client.station_status = "Available"
@@ -790,6 +794,7 @@ async def _test_coordinator_accessors_handle_missing_data(tmp_path: Path) -> Non
             "charger_status": {},
             "session_status": {},
             "session_receipt": None,
+            "realtime_status": {},
         }
         assert coordinator.poll_attributes == {
             "account_settings": None,
@@ -799,6 +804,10 @@ async def _test_coordinator_accessors_handle_missing_data(tmp_path: Path) -> Non
             "charging_receipts": None,
             "trigger": None,
             "in_progress": False,
+            "realtime_status": "polling",
+            "realtime_active_watchers": 0,
+            "realtime_retrying_watchers": 0,
+            "realtime_unavailable": False,
         }
         assert coordinator.connectors() == ()
         assert coordinator.station_status_for("station", 1) is None
@@ -1335,9 +1344,17 @@ async def _test_coordinator_exposes_api_refresh_metadata(tmp_path: Path) -> None
             "charging_receipts",
             "trigger",
             "in_progress",
+            "realtime_status",
+            "realtime_active_watchers",
+            "realtime_retrying_watchers",
+            "realtime_unavailable",
         }
         assert attrs["trigger"] == "setup"
         assert attrs["in_progress"] is False
+        assert attrs["realtime_status"] == "active"
+        assert attrs["realtime_active_watchers"] == 2
+        assert attrs["realtime_retrying_watchers"] == 0
+        assert attrs["realtime_unavailable"] is False
         for attribute in (
             "account_settings",
             "charger_overview",
@@ -1351,7 +1368,13 @@ async def _test_coordinator_exposes_api_refresh_metadata(tmp_path: Path) -> None
         assert isinstance(charger_attrs["charger_status"], str)
         assert isinstance(charger_attrs["session_status"], str)
         assert charger_attrs["session_receipt"] is None
-        assert set(charger_attrs) == {"charger_status", "session_status", "session_receipt"}
+        assert charger_attrs["realtime_status"] == "active"
+        assert set(charger_attrs) == {
+            "charger_status",
+            "session_status",
+            "session_receipt",
+            "realtime_status",
+        }
 
         client.current_chargings_response = []
         await coordinator.async_request_operational_refresh()
@@ -1383,6 +1406,7 @@ async def _test_coordinator_exposes_api_refresh_metadata(tmp_path: Path) -> None
             "charger_status",
             "session_status",
             "session_receipt",
+            "realtime_status",
         }
         assert isinstance(multi_connector_attrs["charger_status"], dict)
         assert isinstance(multi_connector_attrs["charger_status"]["1"], str)
@@ -1390,6 +1414,9 @@ async def _test_coordinator_exposes_api_refresh_metadata(tmp_path: Path) -> None
         assert isinstance(multi_connector_attrs["session_status"], dict)
         assert isinstance(multi_connector_attrs["session_status"]["1"], str)
         assert multi_connector_attrs["session_status"]["2"] is None
+        assert isinstance(multi_connector_attrs["realtime_status"], dict)
+        assert multi_connector_attrs["realtime_status"]["1"] == "active"
+        assert multi_connector_attrs["realtime_status"]["2"] == "polling"
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()
@@ -1677,6 +1704,8 @@ async def _test_coordinator_retries_failed_realtime_watch(
         assert client.station_watch_attempts == 1
         assert ("OK-CHARGER-001", 1) not in client.station_watch_callbacks
         assert coordinator._realtime_watch_failures
+        assert coordinator.poll_attributes["realtime_status"] == "retrying"
+        assert coordinator.poll_attributes["realtime_retrying_watchers"] == 1
         assert (
             caplog.messages.count(
                 "OK Firestore realtime watcher for charger connector 1 became unavailable: "
@@ -1719,9 +1748,93 @@ async def _test_coordinator_retries_failed_realtime_watch(
         assert client.station_watch_attempts == 3
         assert ("OK-CHARGER-001", 1) in client.station_watch_callbacks
         assert not coordinator._realtime_watch_failures
+        assert coordinator.poll_attributes["realtime_status"] == "active"
+        assert coordinator.poll_attributes["realtime_retrying_watchers"] == 0
         assert "OK Firestore realtime watcher for charger connector 1 recovered" in caplog.messages
         await coordinator.async_close_realtime_watches()
     finally:
+        await hass.async_stop()
+
+
+def test_coordinator_reports_retrying_realtime_watch_repair(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asyncio.run(_test_coordinator_reports_retrying_realtime_watch_repair(tmp_path, monkeypatch))
+
+
+async def _test_coordinator_reports_retrying_realtime_watch_repair(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from homeassistant.helpers import issue_registry as ir
+
+    hass = HomeAssistant(str(tmp_path))
+    client = FakeOkClient()
+    client.station_watch_failures = 3
+    entry = _entry()
+    created_issues: list[dict[str, Any]] = []
+    deleted_issues: list[str] = []
+
+    def create_issue(hass_arg, domain, issue_id, **kwargs):
+        created_issues.append(
+            {
+                "hass": hass_arg,
+                "domain": domain,
+                "issue_id": issue_id,
+                **kwargs,
+            }
+        )
+
+    def delete_issue(hass_arg, domain, issue_id):
+        assert hass_arg is hass
+        assert domain == DOMAIN
+        deleted_issues.append(issue_id)
+
+    monkeypatch.setattr(ir, "async_create_issue", create_issue)
+    monkeypatch.setattr(ir, "async_delete_issue", delete_issue)
+
+    try:
+        coordinator = OkDataUpdateCoordinator(hass, entry, client)
+        await coordinator.async_config_entry_first_refresh()
+
+        assert coordinator.poll_attributes["realtime_status"] == "retrying"
+        assert created_issues == []
+
+        for _ in range(2):
+            for key, failure in tuple(coordinator._realtime_watch_failures.items()):
+                coordinator._realtime_watch_failures[key] = type(failure)(
+                    attempts=failure.attempts,
+                    retry_at=0,
+                )
+            assert coordinator.data is not None
+            await coordinator._async_sync_realtime_watches(coordinator.data)
+
+        assert client.station_watch_attempts == 3
+        assert coordinator.poll_attributes["realtime_status"] == "retrying"
+        assert coordinator.charger_poll_attributes("OK-CHARGER-001")["realtime_status"] == (
+            "retrying"
+        )
+        assert created_issues[-1]["domain"] == DOMAIN
+        assert created_issues[-1]["issue_id"] == "realtime_updates_retrying_test"
+        assert created_issues[-1]["is_fixable"] is False
+        assert created_issues[-1]["translation_placeholders"] == {
+            "attempts": "3",
+            "watch": "charger connector 1",
+        }
+
+        for key, failure in tuple(coordinator._realtime_watch_failures.items()):
+            coordinator._realtime_watch_failures[key] = type(failure)(
+                attempts=failure.attempts,
+                retry_at=0,
+            )
+        assert coordinator.data is not None
+        await coordinator._async_sync_realtime_watches(coordinator.data)
+
+        assert coordinator.poll_attributes["realtime_status"] == "active"
+        assert "realtime_updates_retrying_test" in deleted_issues
+    finally:
+        await coordinator.async_close_realtime_watches()
         await hass.async_stop()
 
 
@@ -1878,6 +1991,11 @@ async def _test_coordinator_reports_unavailable_realtime_watch(
 
         assert coordinator._realtime_watches_unavailable is True
         assert coordinator._realtime_watch_handles == {}
+        assert coordinator.poll_attributes["realtime_status"] == "unavailable"
+        assert coordinator.poll_attributes["realtime_unavailable"] is True
+        assert coordinator.charger_poll_attributes("OK-CHARGER-001")["realtime_status"] == (
+            "unavailable"
+        )
         assert client.charging_watch_callbacks == {}
         assert created_issues[0]["domain"] == DOMAIN
         assert created_issues[0]["issue_id"] == "realtime_updates_unavailable_test"

@@ -19,6 +19,8 @@ What that means:
 - Firestore realtime watches are safe for Home Assistant's event loop because subscription
   setup and cleanup are offloaded through Home Assistant's executor, and events are handed
   back to the event loop.
+- Realtime watcher health is visible through diagnostic last-refresh entities, and repairs are
+  raised for missing Firestore runtime support or repeated watcher startup failures.
 
 Why this is not called Platinum yet:
 
@@ -122,4 +124,3 @@ These are useful, but not blockers for the current Gold+ target:
 - More dashboard examples for scheduling and price cards.
 - Additional repair issues for repeated API schema drift or unsupported account/device
   shapes.
-- More granular diagnostics around realtime watcher health and fallback polling.

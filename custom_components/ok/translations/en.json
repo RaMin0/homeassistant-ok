@@ -188,6 +188,18 @@
           },
           "in_progress": {
             "name": "In progress"
+          },
+          "realtime_status": {
+            "name": "Realtime status"
+          },
+          "realtime_active_watchers": {
+            "name": "Realtime active watchers"
+          },
+          "realtime_retrying_watchers": {
+            "name": "Realtime retrying watchers"
+          },
+          "realtime_unavailable": {
+            "name": "Realtime unavailable"
           }
         }
       },
@@ -202,6 +214,9 @@
           },
           "session_receipt": {
             "name": "Session receipt"
+          },
+          "realtime_status": {
+            "name": "Realtime status"
           }
         }
       },
@@ -475,6 +490,10 @@
     "realtime_updates_unavailable": {
       "title": "OK realtime updates are unavailable",
       "description": "OK charging status will continue to update by polling, but Firestore realtime updates could not be started: {reason}. To use polling only, open the OK integration options and turn off Advanced > Realtime updates."
+    },
+    "realtime_updates_retrying": {
+      "title": "OK realtime updates are retrying",
+      "description": "OK charging status will continue to update by polling, but the realtime watcher for {watch} has failed {attempts} times. The integration will keep retrying with backoff."
     }
   },
   "services": {
