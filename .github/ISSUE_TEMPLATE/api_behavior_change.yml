@@ -7,7 +7,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Do not paste passwords, tokens, `.storage` files, `secrets.yaml`, device identifiers, or unsanitized OK API captures.
+        Use this when OK app behavior appears to have changed. Do not paste passwords, tokens,
+        `.storage` files, `secrets.yaml`, device identifiers, or unsanitized OK API captures.
   - type: input
     id: integration_version
     attributes:
@@ -39,13 +40,43 @@ body:
         - Other
     validations:
       required: true
+  - type: input
+    id: affected_entity_or_action
+    attributes:
+      label: Affected entity or action
+      description: Use the Home Assistant entity ID, action name, or config flow step if known.
+      placeholder: "sensor.charger_connector_status, action ok.schedule_charging, config flow login"
+    validations:
+      required: true
+  - type: input
+    id: started_at
+    attributes:
+      label: When did it start?
+      description: Include timezone when possible.
+      placeholder: "2026-07-04 19:30 Europe/Copenhagen"
+  - type: input
+    id: last_known_good
+    attributes:
+      label: Last known working version or date
+      placeholder: "v0.5.1, or 2026-07-03"
   - type: textarea
     id: app_behavior
     attributes:
       label: OK app behavior
-      description: Describe whether the same account/charger/action still works in the OK app.
+      description: Describe whether the same account, charger, schedule, or action still works in the OK app.
     validations:
       required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic entity values
+      description: Paste redacted values from last refresh, charger last refresh, and related OK entities.
+      render: text
+  - type: textarea
+    id: readonly_repro
+    attributes:
+      label: Read-only reproduction steps
+      description: List steps that reproduce the problem without starting, stopping, or scheduling charging.
   - type: textarea
     id: integration_behavior
     attributes:

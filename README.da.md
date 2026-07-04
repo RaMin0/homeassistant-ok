@@ -87,6 +87,9 @@ quality-scale certificering. Tilbageværende Core/Platinum-relaterede tradeoffs 
   brand-filer for custom integrations, kan bruge dem direkte; ældre versioner kan stadig kræve
   OK-assets i Home Assistant brands-repositoriet for frontend branding.
 
+Se [docs/PRIVACY_AND_API_RISKS.md](docs/PRIVACY_AND_API_RISKS.md) for forventninger til privatliv
+og risici ved den uofficielle OK API.
+
 ## 🚀 Installation
 
 ### HACS
@@ -175,6 +178,7 @@ kilder. Den detaljerede fallback-adfærd er beskrevet i
 Læs [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) før du opretter en issue, og brug den
 relevante issue template. Inkludér OK integrationens version, Home Assistant-version,
 installationsmetode, anonymiserede logs og diagnostics når det er relevant.
+Brug [docs/PROJECT_MAP.md](docs/PROJECT_MAP.md) til at forstå issue labels og milestone-grupper.
 
 Indsæt ikke adgangskoder, tokens, Home Assistant `.storage` filer, `secrets.yaml`, databaser eller
 urensede API captures i offentlige issues. Rapporter sårbarheder privat som beskrevet i

@@ -19,6 +19,21 @@
 - name: realtime
   color: "1d76db"
   description: Firestore watcher or realtime update behavior.
+- name: scheduling
+  color: "5319e7"
+  description: Charging schedule entities, actions, or blueprints.
+- name: reliability
+  color: "0052cc"
+  description: Retry, fallback, repair, diagnostics, or unavailable-state behavior.
+- name: release
+  color: "bfd4f2"
+  description: Versioning, changelog, GitHub Release, or HACS release asset behavior.
+- name: privacy
+  color: "b60205"
+  description: Sensitive data handling, diagnostics redaction, or unofficial API risk.
+- name: tests
+  color: "c5def5"
+  description: Unit, fixture, CI, hassfest, HACS, or validation coverage.
 - name: documentation
   color: "0075ca"
   description: README, docs, examples, or launch copy.

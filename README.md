@@ -86,6 +86,9 @@ Assistant quality-scale certification. Remaining Core/Platinum-readiness tradeof
   custom-integration brand files can serve them directly; older versions may still need OK assets in
   the Home Assistant brands repository for frontend branding.
 
+See [docs/PRIVACY_AND_API_RISKS.md](docs/PRIVACY_AND_API_RISKS.md) for privacy expectations and
+unofficial OK API risk details.
+
 ## 🚀 Installation
 
 ### HACS
@@ -173,6 +176,7 @@ The detailed behavior and fallback path are documented in
 Before opening an issue, read [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) and use the
 matching issue template. Include the OK integration version, Home Assistant version, install method,
 redacted logs, and diagnostics when available.
+Use [docs/PROJECT_MAP.md](docs/PROJECT_MAP.md) to understand the issue labels and milestone groups.
 
 Do not paste credentials, tokens, Home Assistant `.storage` files, `secrets.yaml`, databases, or
 unsanitized API captures into public issues. Report vulnerabilities privately according to

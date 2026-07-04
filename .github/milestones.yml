@@ -1,0 +1,8 @@
+- title: Scheduling
+  description: Schedule controls, schedule blueprints, OK app schedule compatibility, and open-ended schedules.
+- title: Energy And Price Intelligence
+  description: Energy price, cost estimation, cheapest windows, and statistics-safe energy behavior.
+- title: Reliability And Diagnostics
+  description: Realtime watcher health, polling fallback, repairs, schema drift, and troubleshooting.
+- title: Publishing And HACS Quality
+  description: Release automation, HACS readiness, documentation, CI, and repository hygiene.
