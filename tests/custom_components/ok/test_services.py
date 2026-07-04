@@ -182,7 +182,15 @@ class FakeConnectorStatusEntity:
     should_poll = False
     supported_features = 0
 
-    def __init__(self, coordinator: FakeCoordinator) -> None:
+    def __init__(
+        self,
+        coordinator: FakeCoordinator,
+        *,
+        entity_id: str = "sensor.charger_connector_status",
+        description_key: str = "connector_status",
+    ) -> None:
+        self.entity_id = entity_id
+        self.entity_description = SimpleNamespace(key=description_key)
         self.coordinator = coordinator
         self.connector = coordinator.connector_refs[0]
         self.context: Any = None
@@ -682,6 +690,21 @@ async def _test_entity_service_target_validation_errors(
         coordinator, _entry = await _setup_entry(hass, client, monkeypatch)
 
         entity = _registered_connector_entity(hass)
+        invalid_entity = FakeConnectorStatusEntity(
+            coordinator,
+            entity_id="sensor.charger_connector_session_status",
+            description_key="connector_session_status",
+        )
+        hass.data[DATA_DOMAIN_PLATFORM_ENTITIES][(Platform.SENSOR.value, DOMAIN)][
+            invalid_entity.entity_id
+        ] = invalid_entity
+        await _assert_service_validation_error(
+            hass,
+            SERVICE_START_CHARGING,
+            invalid_entity.entity_id,
+            "invalid_connector_status_entity",
+        )
+
         entity.connector = SimpleNamespace(station_id="", connector_id=1)
         await _assert_service_validation_error(
             hass,

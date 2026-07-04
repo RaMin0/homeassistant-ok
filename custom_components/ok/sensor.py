@@ -132,6 +132,16 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         value_fn=lambda coordinator, connector: _schedule_duration(coordinator, connector),
     ),
     OkSensorEntityDescription(
+        key="last_session_began",
+        translation_key="last_session_began",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        connector_scoped=False,
+        receipt_required=True,
+        value_fn=lambda coordinator, connector: _parse_datetime(
+            _receipt_field(coordinator, connector, "chargingStart")
+        ),
+    ),
+    OkSensorEntityDescription(
         key="last_session_ended",
         translation_key="last_session_ended",
         device_class=SensorDeviceClass.TIMESTAMP,
@@ -140,6 +150,15 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
         value_fn=lambda coordinator, connector: _parse_datetime(
             _receipt_field(coordinator, connector, "chargingEnd")
         ),
+    ),
+    OkSensorEntityDescription(
+        key="last_session_duration",
+        translation_key="last_session_duration",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        connector_scoped=False,
+        receipt_required=True,
+        value_fn=lambda coordinator, connector: _last_session_duration(coordinator, connector),
     ),
     OkSensorEntityDescription(
         key="last_session_energy",
@@ -163,25 +182,6 @@ SENSOR_DESCRIPTIONS: tuple[OkSensorEntityDescription, ...] = (
             _receipt_field(coordinator, connector, "totalPriceInOere")
         ),
         attrs_fn=lambda coordinator, connector: _last_session_cost_attrs(coordinator, connector),
-    ),
-    OkSensorEntityDescription(
-        key="last_session_started",
-        translation_key="last_session_started",
-        device_class=SensorDeviceClass.TIMESTAMP,
-        connector_scoped=False,
-        receipt_required=True,
-        value_fn=lambda coordinator, connector: _parse_datetime(
-            _receipt_field(coordinator, connector, "chargingStart")
-        ),
-    ),
-    OkSensorEntityDescription(
-        key="last_session_duration",
-        translation_key="last_session_duration",
-        device_class=SensorDeviceClass.DURATION,
-        native_unit_of_measurement=UnitOfTime.SECONDS,
-        connector_scoped=False,
-        receipt_required=True,
-        value_fn=lambda coordinator, connector: _last_session_duration(coordinator, connector),
     ),
 )
 

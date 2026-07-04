@@ -31,6 +31,7 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntries, ConfigEntryState
 from homeassistant.const import CONF_EMAIL, __version__
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError
 from pytest import MonkeyPatch
 
 from custom_components.ok import (
@@ -329,6 +330,37 @@ async def _test_client_from_entry_uses_bundled_client_and_runtime_constants(
         assert client.config.app_version == __version__
 
 
+def test_client_from_entry_requires_stored_api_identifiers(monkeypatch: MonkeyPatch) -> None:
+    asyncio.run(_test_client_from_entry_requires_stored_api_identifiers(monkeypatch))
+
+
+async def _test_client_from_entry_requires_stored_api_identifiers(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("test must not perform HTTP requests")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        monkeypatch.setattr(
+            "homeassistant.helpers.httpx_client.get_async_client",
+            lambda hass: http_client,
+        )
+        for missing_key in (CONF_APP_ID, CONF_DEVICE_ID, CONF_DEVICE_FRIENDLY_ID):
+            data = {
+                CONF_APP_ID: "APP",
+                CONF_DEVICE_ID: "device-id",
+                CONF_DEVICE_FRIENDLY_ID: "friendly-id",
+            }
+            data.pop(missing_key)
+
+            with pytest.raises(ConfigEntryError) as exc_info:
+                _client_from_entry(SimpleNamespace(), SimpleNamespace(data=data))
+
+            assert exc_info.value.translation_domain == DOMAIN
+            assert exc_info.value.translation_key == "missing_config_entry_data"
+            assert exc_info.value.translation_placeholders == {"field": missing_key}
+
+
 def test_setup_entry_cleans_up_when_platform_forwarding_fails(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -500,6 +532,98 @@ def test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(
     asyncio.run(_test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(tmp_path))
 
 
+def test_renamed_last_session_entity_unique_id_is_migrated(tmp_path: Path) -> None:
+    asyncio.run(_test_renamed_last_session_entity_unique_id_is_migrated(tmp_path))
+
+
+def test_renamed_last_session_entity_duplicate_removes_old_entry(tmp_path: Path) -> None:
+    asyncio.run(_test_renamed_last_session_entity_duplicate_removes_old_entry(tmp_path))
+
+
+async def _test_renamed_last_session_entity_unique_id_is_migrated(tmp_path: Path) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    hass = HomeAssistant(str(tmp_path))
+    hass.config_entries = ConfigEntries(hass, {})
+    entry = config_entries.ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="OK",
+        unique_id="1000001",
+        data={},
+        options={},
+        source=config_entries.SOURCE_USER,
+        discovery_keys=MappingProxyType({}),
+        subentries_data=(),
+    )
+    hass.config_entries._entries[entry.entry_id] = entry
+    await er.async_load(hass)
+    registry = er.async_get(hass)
+
+    try:
+        entity_id = registry.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            "OK-CHARGER-001_last_session_started",
+            suggested_object_id="ok_last_session_started",
+            config_entry=entry,
+        ).entity_id
+
+        _cleanup_removed_or_disabled_entities(hass, entry)
+
+        registry_entry = registry.async_get(entity_id)
+        assert registry_entry is not None
+        assert registry_entry.unique_id == "OK-CHARGER-001_last_session_began"
+    finally:
+        await hass.async_stop()
+
+
+async def _test_renamed_last_session_entity_duplicate_removes_old_entry(tmp_path: Path) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    hass = HomeAssistant(str(tmp_path))
+    hass.config_entries = ConfigEntries(hass, {})
+    entry = config_entries.ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="OK",
+        unique_id="1000001",
+        data={},
+        options={},
+        source=config_entries.SOURCE_USER,
+        discovery_keys=MappingProxyType({}),
+        subentries_data=(),
+    )
+    hass.config_entries._entries[entry.entry_id] = entry
+    await er.async_load(hass)
+    registry = er.async_get(hass)
+
+    try:
+        old_entity_id = registry.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            "OK-CHARGER-001_last_session_started",
+            suggested_object_id="ok_last_session_started",
+            config_entry=entry,
+        ).entity_id
+        new_entity_id = registry.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            "OK-CHARGER-001_last_session_began",
+            suggested_object_id="ok_last_session_began",
+            config_entry=entry,
+        ).entity_id
+
+        _cleanup_removed_or_disabled_entities(hass, entry)
+
+        assert registry.async_get(old_entity_id) is None
+        assert registry.async_get(new_entity_id) is not None
+    finally:
+        await hass.async_stop()
+
+
 async def _test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(
     tmp_path: Path,
 ) -> None:
@@ -545,6 +669,13 @@ async def _test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(
                 DOMAIN,
                 "OK-CHARGER-001_last_session_cost",
                 suggested_object_id="ok_last_session_cost",
+                config_entry=entry,
+            ).entity_id,
+            "last_session_started": registry.async_get_or_create(
+                "sensor",
+                DOMAIN,
+                "OK-CHARGER-001_last_session_started",
+                suggested_object_id="ok_last_session_started",
                 config_entry=entry,
             ).entity_id,
             "start": registry.async_get_or_create(
@@ -624,6 +755,7 @@ async def _test_removed_and_disabled_entity_cleanup_is_scoped_to_ok_entities(
         for key in (
             "energy_price",
             "last_session",
+            "last_session_started",
             "start",
             "restart",
             "schedule_start",

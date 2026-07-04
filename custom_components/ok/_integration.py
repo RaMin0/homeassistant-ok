@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.const import CONF_EMAIL
+from homeassistant.exceptions import ConfigEntryError
 
 from . import OkConfigEntry, OkRuntimeData
 from .const import DOMAIN
@@ -33,6 +34,9 @@ class OkChargerServiceTarget:
 
 
 _LEGACY_CONFIG_KEYS = {"login_token"}
+_RENAMED_ENTITY_UNIQUE_ID_SUFFIXES: Mapping[str, str] = {
+    "last_session_started": "last_session_began",
+}
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -190,6 +194,7 @@ def _cleanup_removed_or_disabled_entities(hass: HomeAssistant, entry: ConfigEntr
     if not hasattr(hass, "data"):
         return
     registry = er.async_get(hass)
+    _migrate_renamed_entity_unique_ids(registry, entry)
     for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         if registry_entry.platform != DOMAIN:
             continue
@@ -198,6 +203,30 @@ def _cleanup_removed_or_disabled_entities(hass: HomeAssistant, entry: ConfigEntr
         if keys is None or not _unique_id_ends_with_key(registry_entry.unique_id, keys):
             continue
         registry.async_remove(registry_entry.entity_id)
+
+
+def _migrate_renamed_entity_unique_ids(registry: Any, entry: ConfigEntry) -> None:
+    """Preserve registry entries when an entity key is intentionally renamed."""
+    from homeassistant.helpers import entity_registry as er
+
+    for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if registry_entry.platform != DOMAIN:
+            continue
+        for old_key, new_key in _RENAMED_ENTITY_UNIQUE_ID_SUFFIXES.items():
+            old_unique_id = registry_entry.unique_id
+            if not _unique_id_ends_with_key(old_unique_id, {old_key}):
+                continue
+            new_unique_id = f"{old_unique_id[: -len(old_key)]}{new_key}"
+            existing_entity_id = registry.async_get_entity_id(
+                registry_entry.domain,
+                DOMAIN,
+                new_unique_id,
+            )
+            if existing_entity_id is not None and existing_entity_id != registry_entry.entity_id:
+                registry.async_remove(registry_entry.entity_id)
+                break
+            registry.async_update_entity(registry_entry.entity_id, new_unique_id=new_unique_id)
+            break
 
 
 def _unique_id_ends_with_key(unique_id: str, keys: set[str]) -> bool:
@@ -217,11 +246,14 @@ def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiCli
         CONF_DEVICE_ID,
     )
 
+    app_id = _required_entry_data(entry, CONF_APP_ID)
+    device_id = _required_entry_data(entry, CONF_DEVICE_ID)
+    device_friendly_id = _required_entry_data(entry, CONF_DEVICE_FRIENDLY_ID)
     config = OkApiConfig(
-        app_id=entry.data.get(CONF_APP_ID),
+        app_id=app_id,
         app_secret=APP_SECRET,
-        device_id=entry.data.get(CONF_DEVICE_ID),
-        device_friendly_id=entry.data.get(CONF_DEVICE_FRIENDLY_ID),
+        device_id=device_id,
+        device_friendly_id=device_friendly_id,
         app_platform=APP_PLATFORM,
         app_version=__version__,
     )
@@ -233,6 +265,17 @@ def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiCli
         config=config,
         http_client=get_async_client(hass),
         blocking_call_runner=run_blocking_call,
+    )
+
+
+def _required_entry_data(entry: ConfigEntry, key: str) -> str:
+    value = entry.data.get(key)
+    if isinstance(value, str) and value:
+        return value
+    raise ConfigEntryError(
+        translation_domain=DOMAIN,
+        translation_key="missing_config_entry_data",
+        translation_placeholders={"field": key},
     )
 
 
@@ -476,6 +519,14 @@ def _target_from_entity(entity: Any) -> OkServiceTarget:
     entity_id = getattr(entity, "entity_id", None)
     if not isinstance(entity_id, str):
         entity_id = "unknown"
+
+    entity_description = getattr(entity, "entity_description", None)
+    if getattr(entity_description, "key", None) != "connector_status":
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="invalid_connector_status_entity",
+            translation_placeholders={ATTR_ENTITY_ID: entity_id},
+        )
 
     coordinator = getattr(entity, "coordinator", None)
     entry = getattr(coordinator, "entry", None)

@@ -359,8 +359,14 @@
       "schedule_duration_connector": {
         "name": "Ladestik {connector_id} ladeplan varighed"
       },
+      "last_session_began": {
+        "name": "Seneste session begyndte"
+      },
       "last_session_ended": {
         "name": "Seneste session sluttede"
+      },
+      "last_session_duration": {
+        "name": "Seneste sessionsvarighed"
       },
       "last_session_energy": {
         "name": "Seneste sessionsenergi"
@@ -372,12 +378,6 @@
             "name": "Årsag til manglende pris"
           }
         }
-      },
-      "last_session_started": {
-        "name": "Seneste session startede"
-      },
-      "last_session_duration": {
-        "name": "Seneste sessionsvarighed"
       }
     },
     "switch": {
@@ -416,6 +416,9 @@
     "entity_missing_connector": {
       "message": "Den valgte entitet {entity_id} identificerer ikke et OK-ladestik."
     },
+    "invalid_connector_status_entity": {
+      "message": "Vælg en OK-ladestikstatussensor."
+    },
     "connector_not_found": {
       "message": "Den valgte entitet {entity_id} matcher ikke et indlæst OK-ladestik."
     },
@@ -439,6 +442,9 @@
     },
     "invalid_schedule_window": {
       "message": "Planlagt slut skal være efter planlagt start."
+    },
+    "missing_config_entry_data": {
+      "message": "OK config entry mangler påkrævet gemt data: {field}. Rekonfigurér eller tilføj integrationen igen."
     },
     "command_failed": {
       "message": "OK-kommando mislykkedes: {reason}"
@@ -468,7 +474,7 @@
   "issues": {
     "realtime_updates_unavailable": {
       "title": "OK-realtidsopdateringer er ikke tilgængelige",
-      "description": "OK-ladestatus fortsætter med at blive opdateret via polling, men Firestore-realtidsopdateringer kunne ikke startes: {reason}"
+      "description": "OK-ladestatus fortsætter med at blive opdateret via polling, men Firestore-realtidsopdateringer kunne ikke startes: {reason}. Hvis du kun vil bruge polling, skal du åbne OK-integrationens indstillinger og slå Avanceret > Realtidsopdateringer fra."
     }
   },
   "services": {

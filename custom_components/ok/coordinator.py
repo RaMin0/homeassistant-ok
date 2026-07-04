@@ -870,8 +870,6 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             for connector in _iter_connectors(data.locations)
             if connector.station_id
         }
-        if not charger_identifiers:
-            return
         current_identifiers = set(charger_identifiers)
         account_id = self.entry.unique_id or self.entry.entry_id
         current_identifiers.add((DOMAIN, f"account_{account_id}"))
@@ -888,7 +886,10 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             missing_count = self._missing_device_refreshes.get(device.id, 0) + 1
             self._missing_device_refreshes[device.id] = missing_count
             if missing_count >= _STALE_DEVICE_REMOVE_THRESHOLD:
-                device_registry.async_remove_device(device.id)
+                device_registry.async_update_device(
+                    device.id,
+                    remove_config_entry_id=self.entry.entry_id,
+                )
                 self._missing_device_refreshes.pop(device.id, None)
 
     def connectors(self) -> tuple[OkConnectorRef, ...]:

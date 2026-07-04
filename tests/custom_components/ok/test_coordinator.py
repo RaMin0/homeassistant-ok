@@ -518,8 +518,21 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
     hass = HomeAssistant(str(tmp_path))
     client = FakeOkClient()
     entry = _config_entry()
+    other_entry = config_entries.ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain="other",
+        title="Other",
+        unique_id="other",
+        data={},
+        options={},
+        source=config_entries.SOURCE_USER,
+        discovery_keys=MappingProxyType({}),
+        subentries_data=(),
+    )
     hass.config_entries = ConfigEntries(hass, {})
     hass.config_entries._entries[entry.entry_id] = entry
+    hass.config_entries._entries[other_entry.entry_id] = other_entry
     await _async_load_device_registry(hass)
     device_registry = dr.async_get(hass)
     current_device = device_registry.async_get_or_create(
@@ -537,6 +550,16 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         identifiers={(DOMAIN, "STALE-CHARGER")},
         name="Old Charger",
     )
+    shared_device = device_registry.async_get_or_create(
+        config_entry_id=other_entry.entry_id,
+        identifiers={(DOMAIN, "SHARED-CHARGER")},
+        name="Shared Charger",
+    )
+    shared_device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "SHARED-CHARGER")},
+        name="Shared Charger",
+    )
     other_domain_device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={("other", "STALE-CHARGER")},
@@ -550,6 +573,7 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         assert device_registry.async_get(current_device.id) is not None
         assert device_registry.async_get(account_device.id) is not None
         assert device_registry.async_get(stale_device.id) is not None
+        assert entry.entry_id in device_registry.async_get(shared_device.id).config_entries
         assert device_registry.async_get(other_domain_device.id) is not None
 
         await coordinator._async_update_data()
@@ -557,6 +581,7 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         assert device_registry.async_get(current_device.id) is not None
         assert device_registry.async_get(account_device.id) is not None
         assert device_registry.async_get(stale_device.id) is not None
+        assert entry.entry_id in device_registry.async_get(shared_device.id).config_entries
         assert device_registry.async_get(other_domain_device.id) is not None
 
         await coordinator._async_update_data()
@@ -564,17 +589,27 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         assert device_registry.async_get(current_device.id) is not None
         assert device_registry.async_get(account_device.id) is not None
         assert device_registry.async_get(stale_device.id) is None
+        shared_registry_entry = device_registry.async_get(shared_device.id)
+        assert shared_registry_entry is not None
+        assert entry.entry_id not in shared_registry_entry.config_entries
+        assert other_entry.entry_id in shared_registry_entry.config_entries
         assert device_registry.async_get(other_domain_device.id) is not None
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()
 
 
-def test_coordinator_keeps_devices_when_charger_list_is_empty(tmp_path: Path) -> None:
-    asyncio.run(_test_coordinator_keeps_devices_when_charger_list_is_empty(tmp_path))
+def test_coordinator_removes_stale_charger_devices_when_charger_list_is_empty(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(
+        _test_coordinator_removes_stale_charger_devices_when_charger_list_is_empty(tmp_path)
+    )
 
 
-async def _test_coordinator_keeps_devices_when_charger_list_is_empty(tmp_path: Path) -> None:
+async def _test_coordinator_removes_stale_charger_devices_when_charger_list_is_empty(
+    tmp_path: Path,
+) -> None:
     hass = HomeAssistant(str(tmp_path))
     client = FakeOkClient()
     client.locations_response = []
@@ -588,13 +623,24 @@ async def _test_coordinator_keeps_devices_when_charger_list_is_empty(tmp_path: P
         identifiers={(DOMAIN, "OK-CHARGER-001")},
         name="Home Charger",
     )
+    account_device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "account_1000001")},
+        translation_key="account",
+    )
 
     try:
         coordinator = OkDataUpdateCoordinator(hass, entry, client)
-        for _ in range(3):
-            await coordinator._async_update_data()
+        await coordinator._async_update_data()
+        await coordinator._async_update_data()
 
         assert device_registry.async_get(existing_device.id) is not None
+        assert device_registry.async_get(account_device.id) is not None
+
+        await coordinator._async_update_data()
+
+        assert device_registry.async_get(existing_device.id) is None
+        assert device_registry.async_get(account_device.id) is not None
     finally:
         await coordinator.async_close_realtime_watches()
         await hass.async_stop()

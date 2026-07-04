@@ -550,21 +550,26 @@ async def _test_last_session_sensor(tmp_path: Path) -> None:
         entities = {
             key: OkSensor(coordinator, connector, _description(key))
             for key in (
+                "last_session_began",
                 "last_session_ended",
+                "last_session_duration",
                 "last_session_energy",
                 "last_session_cost",
-                "last_session_started",
-                "last_session_duration",
             )
         }
         for entity in entities.values():
             entity.hass = hass
 
+        assert entities["last_session_began"].native_value == datetime(
+            2026, 6, 13, 20, 0, tzinfo=UTC
+        )
         assert entities["last_session_ended"].unique_id == "OK-CHARGER-001_last_session_ended"
         assert entities["last_session_ended"].native_value == datetime(
             2026, 6, 13, 22, 0, tzinfo=UTC
         )
         assert entities["last_session_ended"].extra_state_attributes == {}
+        assert entities["last_session_duration"].native_value == 7200
+        assert entities["last_session_duration"].native_unit_of_measurement is UnitOfTime.SECONDS
         assert entities["last_session_energy"].native_value == 12.5
         assert entities["last_session_energy"].native_unit_of_measurement is (
             UnitOfEnergy.KILO_WATT_HOUR
@@ -572,11 +577,6 @@ async def _test_last_session_sensor(tmp_path: Path) -> None:
         assert entities["last_session_cost"].native_value == 17.67
         assert entities["last_session_cost"].native_unit_of_measurement == "DKK"
         assert entities["last_session_cost"].extra_state_attributes == {"no_price_reason": None}
-        assert entities["last_session_started"].native_value == datetime(
-            2026, 6, 13, 20, 0, tzinfo=UTC
-        )
-        assert entities["last_session_duration"].native_value == 7200
-        assert entities["last_session_duration"].native_unit_of_measurement is UnitOfTime.SECONDS
 
         coordinator.receipt = None
 

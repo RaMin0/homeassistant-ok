@@ -49,8 +49,8 @@ for single-connector chargers.
 | Sensor | `connector_session_power` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
 | Sensor | `connector_session_energy` | Connector | Enabled | None | Firestore charging-session status watch with HTTP snapshot fallback. |
 | Sensor | `schedule_duration` | Connector | Enabled | None | Derived from the freshest trusted schedule source: local command echo, v3/v2 current-chargings schedules, or charging-session Firestore events. |
+| Sensor | `last_session_began` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_ended` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
-| Sensor | `last_session_started` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_duration` | Charger | Option-controlled | None | Derived from last receipt start/end. |
 | Sensor | `last_session_energy` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |
 | Sensor | `last_session_cost` | Charger | Option-controlled | None | Receipt list or quick receipt endpoint. |

@@ -77,11 +77,11 @@
       "charger_last_refresh": {
         "default": "mdi:api"
       },
+      "last_session_began": {
+        "default": "mdi:clock-start"
+      },
       "last_session_ended": {
         "default": "mdi:clock-end"
-      },
-      "last_session_cost": {
-        "default": "mdi:cash"
       },
       "last_session_duration": {
         "default": "mdi:timer-outline"
@@ -89,8 +89,8 @@
       "last_session_energy": {
         "default": "mdi:battery-charging"
       },
-      "last_session_started": {
-        "default": "mdi:clock-start"
+      "last_session_cost": {
+        "default": "mdi:cash"
       },
       "schedule_duration": {
         "default": "mdi:timer-outline"

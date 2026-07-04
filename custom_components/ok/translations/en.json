@@ -359,8 +359,14 @@
       "schedule_duration_connector": {
         "name": "Connector {connector_id} schedule duration"
       },
+      "last_session_began": {
+        "name": "Last session began"
+      },
       "last_session_ended": {
         "name": "Last session ended"
+      },
+      "last_session_duration": {
+        "name": "Last session duration"
       },
       "last_session_energy": {
         "name": "Last session energy"
@@ -372,12 +378,6 @@
             "name": "No price reason"
           }
         }
-      },
-      "last_session_started": {
-        "name": "Last session started"
-      },
-      "last_session_duration": {
-        "name": "Last session duration"
       }
     },
     "switch": {
@@ -416,6 +416,9 @@
     "entity_missing_connector": {
       "message": "The selected entity {entity_id} does not identify an OK charger connector."
     },
+    "invalid_connector_status_entity": {
+      "message": "Select an OK connector status sensor."
+    },
     "connector_not_found": {
       "message": "The selected entity {entity_id} does not match a loaded OK charger connector."
     },
@@ -439,6 +442,9 @@
     },
     "invalid_schedule_window": {
       "message": "Scheduled end must be after scheduled start."
+    },
+    "missing_config_entry_data": {
+      "message": "The OK config entry is missing required stored data: {field}. Reconfigure or re-add the integration."
     },
     "command_failed": {
       "message": "OK command failed: {reason}"
@@ -468,7 +474,7 @@
   "issues": {
     "realtime_updates_unavailable": {
       "title": "OK realtime updates are unavailable",
-      "description": "OK charging status will continue to update by polling, but Firestore realtime updates could not be started: {reason}"
+      "description": "OK charging status will continue to update by polling, but Firestore realtime updates could not be started: {reason}. To use polling only, open the OK integration options and turn off Advanced > Realtime updates."
     }
   },
   "services": {
