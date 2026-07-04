@@ -1,0 +1,35 @@
+{
+  "current_charging": [
+    {
+      "charging_station_id": "OK-CHARGER-001",
+      "connector_id": 1,
+      "location_identifier": "home-location",
+      "charging_token": "charging-token-001",
+      "charging_transaction_type": "Scheduled",
+      "initiated_at": "2026-07-01T18:00:00+02:00",
+      "schedules": [
+        {
+          "from": "2026-07-01T22:00:00+02:00",
+          "to": null,
+          "updatedAt": "2026-07-01T18:05:00+02:00"
+        }
+      ]
+    },
+    {
+      "csIdentifier": "OK-CHARGER-001",
+      "connectorId": 2,
+      "locationId": "home-location",
+      "chargingToken": "charging-token-002",
+      "firestoreToken": "firestore-token-002",
+      "chargingTransactionType": "Manual",
+      "initiatedAt": "2026-07-01T18:10:00+02:00",
+      "schedules": [
+        {
+          "scheduledStart": "2026-07-02T01:00:00+02:00",
+          "scheduledEnd": "2026-07-02T04:00:00+02:00",
+          "statusUpdated": "2026-07-01T18:15:00+02:00"
+        }
+      ]
+    }
+  ]
+}

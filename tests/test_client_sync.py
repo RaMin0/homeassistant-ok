@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
+from pathlib import Path
 
 import api._client as client_module
 import httpx
@@ -27,6 +28,12 @@ from api._client import (
 )
 from api._signing import SHA_1, SHA_256, generate_signature
 from api._version import __version__
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
+
+
+def _load_fixture(name: str) -> object:
+    return json.loads((FIXTURE_DIR / name).read_text())
 
 
 def test_service_flow_signs_payloads_and_stores_session_state() -> None:
@@ -371,6 +378,61 @@ def test_current_charging_normalization_handles_supported_field_variants() -> No
     }
 
     assert _normalize_command_response({"result": "Success"}) == {"result": "Success"}
+
+
+def test_get_chargings_accepts_fixture_schedule_variants() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/get-current-chargings")
+        return httpx.Response(
+            200,
+            json=_load_fixture("current_chargings_v3_schedule_variants.json"),
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as http_client:
+        client = OkApiClient(
+            app_id="APP",
+            app_secret="SECRET",
+            device_id="device-id",
+            http_client=http_client,
+            timestamp_provider=lambda: 123,
+        )
+
+        chargings = client.get_chargings()
+
+    assert chargings == [
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 1,
+            "locationId": "home-location",
+            "firestoreToken": "charging-token-001",
+            "chargingToken": "charging-token-001",
+            "chargingTransactionType": "Scheduled",
+            "initiatedAt": "2026-07-01T18:00:00+02:00",
+            "schedules": [
+                {
+                    "scheduledStart": "2026-07-01T22:00:00+02:00",
+                    "scheduledEnd": None,
+                    "updatedAt": "2026-07-01T18:05:00+02:00",
+                }
+            ],
+        },
+        {
+            "csIdentifier": "OK-CHARGER-001",
+            "connectorId": 2,
+            "locationId": "home-location",
+            "firestoreToken": "firestore-token-002",
+            "chargingToken": "charging-token-002",
+            "chargingTransactionType": "Manual",
+            "initiatedAt": "2026-07-01T18:10:00+02:00",
+            "schedules": [
+                {
+                    "scheduledStart": "2026-07-02T01:00:00+02:00",
+                    "scheduledEnd": "2026-07-02T04:00:00+02:00",
+                    "statusUpdated": "2026-07-01T18:15:00+02:00",
+                }
+            ],
+        },
+    ]
 
 
 @pytest.mark.parametrize(

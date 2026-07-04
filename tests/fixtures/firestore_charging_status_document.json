@@ -1,0 +1,31 @@
+{
+  "name": "projects/ok-app/databases/(default)/documents/OK/Emsp/RemoteTransactions/charging-token-001",
+  "fields": {
+    "status": {
+      "stringValue": "Scheduled"
+    },
+    "chargeInWh": {
+      "integerValue": "5835"
+    },
+    "powerInW": {
+      "integerValue": "3522"
+    },
+    "scheduledStart": {
+      "timestampValue": "2026-07-01T22:00:00+02:00"
+    },
+    "scheduledEnd": {
+      "nullValue": null
+    },
+    "statusUpdated": {
+      "timestampValue": "2026-07-01T18:15:00+02:00"
+    },
+    "stopReason": {
+      "stringValue": "EVDisconnected"
+    },
+    "paymentStatus": {
+      "stringValue": "Captured"
+    }
+  },
+  "createTime": "2026-07-01T18:00:00+02:00",
+  "updateTime": "2026-07-01T18:15:00+02:00"
+}

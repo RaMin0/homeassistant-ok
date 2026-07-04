@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from api import (
@@ -24,6 +26,12 @@ from api._firestore import (
     decode_firestore_value,
     watch_firestore_document,
 )
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
+
+
+def _load_fixture(name: str) -> dict[str, object]:
+    return json.loads((FIXTURE_DIR / name).read_text())
 
 
 def test_decode_firestore_document_supports_collection_value_types() -> None:
@@ -51,6 +59,23 @@ def test_decode_firestore_document_supports_collection_value_types() -> None:
         "items": [1, "two"],
     }
     assert parse_nanoseconds_timestamp("1749471851000000000") == "2025-06-09T12:24:11Z"
+
+
+def test_decode_firestore_document_accepts_charging_status_fixture() -> None:
+    document = decode_firestore_document(_load_fixture("firestore_charging_status_document.json"))
+
+    assert document.name.endswith("/OK/Emsp/RemoteTransactions/charging-token-001")
+    assert document.fields == {
+        "status": "Scheduled",
+        "chargeInWh": 5835,
+        "powerInW": 3522,
+        "scheduledStart": "2026-07-01T22:00:00+02:00",
+        "scheduledEnd": None,
+        "statusUpdated": "2026-07-01T18:15:00+02:00",
+        "stopReason": "EVDisconnected",
+        "paymentStatus": "Captured",
+    }
+    assert document.update_time == "2026-07-01T18:15:00+02:00"
 
 
 def test_decode_firestore_value_handles_edge_shapes() -> None:
