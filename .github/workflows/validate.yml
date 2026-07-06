@@ -117,6 +117,29 @@ jobs:
             pip-v2-${{ runner.os }}-ha-${{ matrix.ha-version }}-${{ github.job }}-
             pip-v2-${{ runner.os }}-ha-${{ matrix.ha-version }}-
             pip-v2-${{ runner.os }}-ha-
+      - name: Validate Home Assistant requirement resolution
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          from pathlib import Path
+
+          from homeassistant.util.package import install_package
+
+          constraints = "/usr/src/homeassistant/homeassistant/package_constraints.txt"
+          manifest = json.loads(Path("custom_components/ok/manifest.json").read_text())
+          failed = [
+              requirement
+              for requirement in manifest["requirements"]
+              if not install_package(requirement, constraints=constraints)
+          ]
+          if failed:
+              raise SystemExit(
+                  "Home Assistant could not install manifest requirements: "
+                  + ", ".join(failed)
+              )
+          PY
       - name: Create isolated HA test environment
         run: |
           python -m venv --system-site-packages "$HA_VENV"

@@ -67,6 +67,26 @@ docker compose run --rm \
   --entrypoint sh \
   homeassistant \
   -lc 'set -e
+  python - <<'"'"'PY'"'"'
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from homeassistant.util.package import install_package
+
+constraints = "/usr/src/homeassistant/homeassistant/package_constraints.txt"
+manifest = json.loads(Path("custom_components/ok/manifest.json").read_text())
+failed = [
+    requirement
+    for requirement in manifest["requirements"]
+    if not install_package(requirement, constraints=constraints)
+]
+if failed:
+    raise SystemExit(
+        "Home Assistant could not install manifest requirements: " + ", ".join(failed)
+    )
+PY
   HA_VENV=/tmp/ok-ha-venv
   python -m venv --system-site-packages "$HA_VENV" && \
   "$HA_VENV/bin/python" -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \
@@ -142,6 +162,26 @@ docker run --rm \
   -w /workspace \
   ghcr.io/home-assistant/home-assistant:stable \
   sh -lc 'set -e
+  python - <<'"'"'PY'"'"'
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from homeassistant.util.package import install_package
+
+constraints = "/usr/src/homeassistant/homeassistant/package_constraints.txt"
+manifest = json.loads(Path("custom_components/ok/manifest.json").read_text())
+failed = [
+    requirement
+    for requirement in manifest["requirements"]
+    if not install_package(requirement, constraints=constraints)
+]
+if failed:
+    raise SystemExit(
+        "Home Assistant could not install manifest requirements: " + ", ".join(failed)
+    )
+PY
   HA_VENV=/tmp/ok-ha-venv
   python -m venv --system-site-packages "$HA_VENV" && \
   "$HA_VENV/bin/python" -m pip install --upgrade pip >/tmp/ok-pip-upgrade.log && \

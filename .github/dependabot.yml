@@ -16,6 +16,10 @@ updates:
       semver-major-days: 30
       semver-minor-days: 7
       semver-patch-days: 3
+    ignore:
+      - dependency-name: google-cloud-firestore
+        versions:
+          - ">=2.28.0, <2.29.0"
     groups:
       python-dependencies:
         patterns:
