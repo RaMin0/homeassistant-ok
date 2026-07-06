@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.6.1 (2026-07-06)
+
+### Bug Fixes
+
+- **deps**: Restore Home Assistant compatible Firestore pin
+  ([`fb2a1ad`](https://github.com/RaMin0/homeassistant-ok/commit/fb2a1ad2b9719612aa3cf36e655248b7bbc0322a))
+
+### Chores
+
+- **deps**: Bump google-cloud-firestore from 2.27.0 to 2.28.0 in the python-dependencies group
+  ([`f75c330`](https://github.com/RaMin0/homeassistant-ok/commit/f75c330e7c69a68ba1ea92e7a65afbe9e7591b46))
+
+
 ## v0.6.0 (2026-07-04)
 
 ### Continuous Integration
