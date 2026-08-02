@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -25,3 +27,15 @@ def test_manifest_requirements_mirror_matches_manifest() -> None:
     ]
 
     assert mirror == manifest["requirements"]
+
+
+def test_manifest_requirements_mirror_is_generated() -> None:
+    result = subprocess.run(
+        [sys.executable, "tools/sync_manifest_requirements.py", "--check"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout

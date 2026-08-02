@@ -17,9 +17,10 @@ updates:
       semver-minor-days: 7
       semver-patch-days: 3
     ignore:
+      # The Home Assistant manifest is the runtime dependency source of truth. Dependabot's
+      # pip updater cannot update it atomically with requirements-manifest.txt.
+      - dependency-name: google-auth
       - dependency-name: google-cloud-firestore
-        versions:
-          - ">=2.28.0, <2.29.0"
     groups:
       python-dependencies:
         patterns:
