@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.6.2 (2026-08-02)
+
+### Bug Fixes
+
+- **ci**: Make validation toolchain deterministic
+  ([#11](https://github.com/RaMin0/homeassistant-ok/pull/11),
+  [`5bf01f9`](https://github.com/RaMin0/homeassistant-ok/commit/5bf01f9bad3185afa4753af931cc3f3963f43b50))
+
+
 ## v0.6.1 (2026-07-06)
 
 ### Bug Fixes
