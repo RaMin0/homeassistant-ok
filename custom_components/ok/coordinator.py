@@ -1640,7 +1640,7 @@ def _price_source(station_id: str) -> str:
 
 def _single_connector_refresh_value(
     values: Mapping[int, str | None],
-) -> str | None | dict[str, str | None]:
+) -> str | dict[str, str | None] | None:
     if len(values) == 1:
         return next(iter(values.values()))
     return {str(connector_id): value for connector_id, value in values.items()}

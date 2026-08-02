@@ -105,8 +105,7 @@ docker run --rm \
   -w /workspace \
   python:3.13-slim \
   sh -lc 'set -e
-  python -m pip install --upgrade pip "build>=1.2,<2" "pip-audit>=2.9,<3" \
-    "ruff>=0.12,<1" "twine>=6.0,<7" >/tmp/ok-pip.log && \
+  python -m pip install --upgrade pip -r requirements-ci.txt >/tmp/ok-pip.log && \
   python - <<'"'"'PY'"'"' > /tmp/ok-audit-requirements.txt
 from __future__ import annotations
 
@@ -218,6 +217,20 @@ docker compose run --rm -v "$PWD":/workspace -w /workspace --entrypoint sh homea
     "pytest>=8.4,<10" "pytest-asyncio>=1.1,<2" >/tmp/ok-pip.log
   "$HA_VENV/bin/python" -m pytest tests/test_client_async.py tests/test_firestore.py -q'
 ```
+
+## Dependency Metadata
+
+`custom_components/ok/manifest.json` is the source of truth for Home Assistant runtime
+requirements. Regenerate its pip/Dependabot mirror after changing those requirements:
+
+```bash
+python tools/sync_manifest_requirements.py
+python tools/sync_manifest_requirements.py --check
+```
+
+`requirements-ci.txt` pins CI-only build, audit, lint, and package-check tools. Update it
+deliberately in its own dependency PR so a new tool version cannot silently change validation on
+`main`.
 
 ## Publish-Surface Audit
 
