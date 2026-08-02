@@ -43,7 +43,7 @@ dev = [
   "twine>=6.0,<7",
 ]
 release = [
-  "python-semantic-release==10.5.3",
+  "python-semantic-release==10.6.1",
 ]
 
 [project.urls]
