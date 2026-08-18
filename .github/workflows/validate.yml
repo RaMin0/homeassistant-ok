@@ -232,7 +232,11 @@ jobs:
                   print(stripped)
           PY
       - run: python -m pip_audit -r /tmp/ok-audit-requirements.txt --progress-spinner off
-      - run: python -m build --outdir /tmp/dist
+      - name: Build distributions
+        run: python -m build --outdir /tmp/dist
+        env:
+          # Pin the PEP 517 build backend resolved into build's isolated environment.
+          PIP_CONSTRAINT: requirements-ci.txt
       - run: python -m twine check /tmp/dist/*
       - name: Check package contents
         run: |
