@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v0.6.3 (2026-08-18)
+
+### Bug Fixes
+
+- **api**: Send numeric-only app version to OK
+  ([#20](https://github.com/RaMin0/homeassistant-ok/pull/20),
+  [`6b2193a`](https://github.com/RaMin0/homeassistant-ok/commit/6b2193aff32bbc8c26e4f81a1fa7cd3657d61331))
+
+### Chores
+
+- **deps**: Bump google-auth from 2.55.1 to 2.55.2
+  ([#13](https://github.com/RaMin0/homeassistant-ok/pull/13),
+  [`801c795`](https://github.com/RaMin0/homeassistant-ok/commit/801c795206269f669b27c35b7f66c0294cb31eb9))
+
+- **deps**: Bump home-assistant/actions/hassfest from e3fb68ebda13d88a0d695082f471ba2c83d025fb to
+  ab22029681aa532bfe7de5774a9972d67bfbd2c0 in the github-actions group
+  ([#15](https://github.com/RaMin0/homeassistant-ok/pull/15),
+  [`6759a15`](https://github.com/RaMin0/homeassistant-ok/commit/6759a159c1daec04f119f33c300f7cb08109774f))
+
+- **deps**: Bump ruff from 0.16.0 to 0.16.1 in the python-dependencies group
+  ([#14](https://github.com/RaMin0/homeassistant-ok/pull/14),
+  [`541fb23`](https://github.com/RaMin0/homeassistant-ok/commit/541fb23a2d39b3bcace03d81772e5ab150c565a1))
+
+- **deps**: Bump the github-actions group across 1 directory with 4 updates
+  ([#10](https://github.com/RaMin0/homeassistant-ok/pull/10),
+  [`d2222f1`](https://github.com/RaMin0/homeassistant-ok/commit/d2222f1a1b65fbd41f9ec68f71bd0d8fd8422dca))
+
+- **deps-dev**: Bump python-semantic-release from 10.5.3 to 10.6.1 in the python-dependencies group
+  across 1 directory ([#12](https://github.com/RaMin0/homeassistant-ok/pull/12),
+  [`f0c842d`](https://github.com/RaMin0/homeassistant-ok/commit/f0c842de0165e02d6a12198439950c91537e0491))
+
+### Continuous Integration
+
+- Restore green validation pipeline ([#18](https://github.com/RaMin0/homeassistant-ok/pull/18),
+  [`594c1f9`](https://github.com/RaMin0/homeassistant-ok/commit/594c1f9b4b29d9f913c452d14aff86b83aaa8129))
+
+
 ## v0.6.2 (2026-08-02)
 
 ### Bug Fixes
