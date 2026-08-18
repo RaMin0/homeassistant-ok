@@ -1,5 +1,9 @@
 # Exact CI-only toolchain. Update intentionally in a dedicated dependency PR.
+# hatchling is the PEP 517 build backend from pyproject.toml. It is pinned here and applied
+# to the isolated build environment through PIP_CONSTRAINT, so the wheel metadata version
+# cannot drift ahead of what twine can validate.
 build==1.5.0
+hatchling==1.32.0
 pip-audit==2.10.1
 ruff==0.16.1
-twine==6.2.0
+twine==7.0.0

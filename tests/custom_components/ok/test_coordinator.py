@@ -565,6 +565,13 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         identifiers={("other", "STALE-CHARGER")},
         name="Other Device",
     )
+    # Home Assistant 2026.x moved the device registry to a single-owner model: a device
+    # belongs to exactly one config entry, so the second get_or_create above moves
+    # ownership instead of adding a second owner, and removing that owner deletes the
+    # device. Detect the model in use rather than pinning a version boundary.
+    shared_device_has_two_owners = (
+        other_entry.entry_id in device_registry.async_get(shared_device.id).config_entries
+    )
 
     try:
         coordinator = OkDataUpdateCoordinator(hass, entry, client)
@@ -590,9 +597,12 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         assert device_registry.async_get(account_device.id) is not None
         assert device_registry.async_get(stale_device.id) is None
         shared_registry_entry = device_registry.async_get(shared_device.id)
-        assert shared_registry_entry is not None
-        assert entry.entry_id not in shared_registry_entry.config_entries
-        assert other_entry.entry_id in shared_registry_entry.config_entries
+        if shared_device_has_two_owners:
+            assert shared_registry_entry is not None
+            assert entry.entry_id not in shared_registry_entry.config_entries
+            assert other_entry.entry_id in shared_registry_entry.config_entries
+        else:
+            assert shared_registry_entry is None
         assert device_registry.async_get(other_domain_device.id) is not None
     finally:
         await coordinator.async_close_realtime_watches()

@@ -7,7 +7,10 @@ updates:
       day: monday
       time: "05:00"
       timezone: Europe/Copenhagen
-    open-pull-requests-limit: 1
+    # Version updates are disabled: zero opens no version-update pull requests. Dependabot
+    # security updates are exempt from this limit and keep flowing. Raise this to re-enable
+    # routine dependency noise.
+    open-pull-requests-limit: 0
     rebase-strategy: disabled
     commit-message:
       prefix: chore
@@ -16,11 +19,14 @@ updates:
       semver-major-days: 30
       semver-minor-days: 7
       semver-patch-days: 3
-    ignore:
-      # The Home Assistant manifest is the runtime dependency source of truth. Dependabot's
-      # pip updater cannot update it atomically with requirements-manifest.txt.
-      - dependency-name: google-auth
-      - dependency-name: google-cloud-firestore
+    # google-auth and google-cloud-firestore were previously ignored here because the Home
+    # Assistant manifest is the runtime dependency source of truth and Dependabot's pip
+    # updater cannot update it atomically with requirements-manifest.txt. Those ignores are
+    # dropped: with version updates off they served no purpose, and a bare dependency-name
+    # ignore risks suppressing security updates for the two packages actually shipped to
+    # users. A security PR for either will edit requirements-manifest.txt alone and fail the
+    # "python3 tools/sync_manifest_requirements.py --check" step; resolve it by applying the
+    # bump to custom_components/ok/manifest.json and re-running that tool.
     groups:
       python-dependencies:
         patterns:
@@ -33,7 +39,8 @@ updates:
       day: monday
       time: "05:30"
       timezone: Europe/Copenhagen
-    open-pull-requests-limit: 1
+    # Version updates are disabled; see the pip block above. Security updates still flow.
+    open-pull-requests-limit: 0
     rebase-strategy: disabled
     commit-message:
       prefix: chore
