@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
@@ -29,7 +30,7 @@ from custom_components.ok.const import (
 )
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntries, ConfigEntryState
-from homeassistant.const import CONF_EMAIL, __version__
+from homeassistant.const import CONF_EMAIL, __short_version__, __version__
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
 from pytest import MonkeyPatch
@@ -327,7 +328,13 @@ async def _test_client_from_entry_uses_bundled_client_and_runtime_constants(
         assert client.config.device_friendly_id == "friendly-id"
         assert client.config.login_token is None
         assert client.config.app_platform == APP_PLATFORM
-        assert client.config.app_version == __version__
+        # OK's API returns HTTP 500 with an empty body when X-App-Version carries a
+        # non-numeric suffix, which Home Assistant beta, release-candidate, and dev builds
+        # all have. The short version is numeric by construction.
+        assert client.config.app_version == __short_version__
+        assert re.fullmatch(r"\d+(?:\.\d+)*", client.config.app_version)
+        if __version__ != __short_version__:
+            assert client.config.app_version != __version__
 
 
 def test_client_from_entry_requires_stored_api_identifiers(monkeypatch: MonkeyPatch) -> None:

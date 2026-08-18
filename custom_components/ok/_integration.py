@@ -234,7 +234,7 @@ def _unique_id_ends_with_key(unique_id: str, keys: set[str]) -> bool:
 
 
 def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiClient:
-    from homeassistant.const import __version__
+    from homeassistant.const import __short_version__
     from homeassistant.helpers.httpx_client import get_async_client
 
     from .api import AsyncOkApiClient, OkApiConfig
@@ -255,7 +255,10 @@ def _client_from_entry(hass: HomeAssistant, entry: ConfigEntry) -> AsyncOkApiCli
         device_id=device_id,
         device_friendly_id=device_friendly_id,
         app_platform=APP_PLATFORM,
-        app_version=__version__,
+        # Home Assistant's full version carries a suffix on beta, release-candidate, and dev
+        # builds (2026.8.0b4, 2026.8.0rc1, 2026.9.0.dev20260801). OK's API returns HTTP 500
+        # with an empty body for those, so send the numeric-only short version instead.
+        app_version=__short_version__,
     )
 
     async def run_blocking_call[T](func: Callable[[], T]) -> T:
