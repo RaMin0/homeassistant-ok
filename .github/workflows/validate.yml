@@ -7,7 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * 0"
+    # Daily. This run is the primary detector for Home Assistant stable drift and, through
+    # pip-audit, for vulnerable shipped runtime dependencies. Dependabot version updates are
+    # disabled, so nothing else surfaces either on its own.
+    - cron: "0 3 * * *"
 
 permissions:
   contents: read
