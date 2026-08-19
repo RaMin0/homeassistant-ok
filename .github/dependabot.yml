@@ -12,6 +12,11 @@ updates:
     # routine dependency noise.
     open-pull-requests-limit: 0
     rebase-strategy: disabled
+    # Pin labels so security-update PRs get kebab-case names instead of Dependabot's
+    # auto-created "python" default reverting to any non-kebab form.
+    labels:
+      - dependencies
+      - python
     commit-message:
       prefix: chore
       include: scope
@@ -42,6 +47,10 @@ updates:
     # Version updates are disabled; see the pip block above. Security updates still flow.
     open-pull-requests-limit: 0
     rebase-strategy: disabled
+    # Pin labels so Dependabot does not recreate the snake_case "github_actions" label.
+    labels:
+      - dependencies
+      - github-actions
     commit-message:
       prefix: chore
       include: scope
