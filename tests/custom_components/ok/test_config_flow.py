@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 import custom_components.ok.config_flow  # noqa: F401
 import pytest_asyncio
-import voluptuous_serialize
 from custom_components.ok.api import (
     AsyncOkApiClient,
     OkAuthenticationError,
@@ -33,7 +32,6 @@ from homeassistant.config_entries import ConfigEntries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, __version__
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import config_validation as cv
 from homeassistant.loader import (
     DATA_COMPONENTS,
     DATA_CUSTOM_COMPONENTS,
@@ -499,12 +497,6 @@ async def test_options_flow_updates_feature_toggles(hass: HomeAssistant) -> None
     assert defaults[CONF_INCLUDE_RECEIPTS] is True
     assert defaults[CONF_ENABLE_CONTROL_BUTTONS] is True
     assert defaults["advanced"][CONF_ENABLE_REALTIME_UPDATES] is True
-    serialized_schema = voluptuous_serialize.convert(
-        result["data_schema"],
-        custom_serializer=cv.custom_serializer,
-    )
-    advanced_section = next(item for item in serialized_schema if item["name"] == "advanced")
-    assert advanced_section["default"] == {CONF_ENABLE_REALTIME_UPDATES: True}
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],

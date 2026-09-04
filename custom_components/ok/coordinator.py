@@ -941,10 +941,18 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
             missing_count = self._missing_device_refreshes.get(device.id, 0) + 1
             self._missing_device_refreshes[device.id] = missing_count
             if missing_count >= _STALE_DEVICE_REMOVE_THRESHOLD:
-                device_registry.async_update_device(
-                    device.id,
-                    remove_config_entry_id=self.entry.entry_id,
-                )
+                # Home Assistant 2026.x moved the device registry to a single-owner model and
+                # deprecated async_update_device(remove_config_entry_id=...), which breaks in
+                # 2027.8.0. When this entry is the device's only owner, remove it outright with
+                # async_remove_device. Fall back to disassociation only when another config entry
+                # still owns the device, which only happens on older multi-owner Home Assistant.
+                if device.config_entries == {self.entry.entry_id}:
+                    device_registry.async_remove_device(device.id)
+                else:
+                    device_registry.async_update_device(
+                        device.id,
+                        remove_config_entry_id=self.entry.entry_id,
+                    )
                 self._missing_device_refreshes.pop(device.id, None)
 
     def connectors(self) -> tuple[OkConnectorRef, ...]:
