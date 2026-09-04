@@ -2,6 +2,21 @@
 
 <!-- version list -->
 
+## v0.6.4 (2026-09-04)
+
+### Bug Fixes
+
+- **coordinator**: Support Home Assistant 2026.9.0
+  ([#22](https://github.com/RaMin0/homeassistant-ok/pull/22),
+  [`d22973b`](https://github.com/RaMin0/homeassistant-ok/commit/d22973bdc70ebe495709cf2bf03c8c771949f6d2))
+
+### Continuous Integration
+
+- Pin dependabot labels to kebab-case names
+  ([#21](https://github.com/RaMin0/homeassistant-ok/pull/21),
+  [`ebf293b`](https://github.com/RaMin0/homeassistant-ok/commit/ebf293b8a05fbd3cb983f11bd8b54db99332d253))
+
+
 ## v0.6.3 (2026-08-18)
 
 ### Bug Fixes
