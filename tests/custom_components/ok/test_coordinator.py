@@ -569,8 +569,8 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
     # belongs to exactly one config entry, so the second get_or_create above moves
     # ownership instead of adding a second owner, and removing that owner deletes the
     # device. Detect the model in use rather than pinning a version boundary.
-    shared_device_has_two_owners = (
-        other_entry.entry_id in device_registry.async_get(shared_device.id).config_entries
+    shared_device_has_two_owners = other_entry.entry_id in _device_owners(
+        device_registry.async_get(shared_device.id)
     )
 
     try:
@@ -580,7 +580,7 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         assert device_registry.async_get(current_device.id) is not None
         assert device_registry.async_get(account_device.id) is not None
         assert device_registry.async_get(stale_device.id) is not None
-        assert entry.entry_id in device_registry.async_get(shared_device.id).config_entries
+        assert entry.entry_id in _device_owners(device_registry.async_get(shared_device.id))
         assert device_registry.async_get(other_domain_device.id) is not None
 
         await coordinator._async_update_data()
@@ -588,7 +588,7 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         assert device_registry.async_get(current_device.id) is not None
         assert device_registry.async_get(account_device.id) is not None
         assert device_registry.async_get(stale_device.id) is not None
-        assert entry.entry_id in device_registry.async_get(shared_device.id).config_entries
+        assert entry.entry_id in _device_owners(device_registry.async_get(shared_device.id))
         assert device_registry.async_get(other_domain_device.id) is not None
 
         await coordinator._async_update_data()
@@ -599,8 +599,8 @@ async def _test_coordinator_removes_stale_ok_devices(tmp_path: Path) -> None:
         shared_registry_entry = device_registry.async_get(shared_device.id)
         if shared_device_has_two_owners:
             assert shared_registry_entry is not None
-            assert entry.entry_id not in shared_registry_entry.config_entries
-            assert other_entry.entry_id in shared_registry_entry.config_entries
+            assert entry.entry_id not in _device_owners(shared_registry_entry)
+            assert other_entry.entry_id in _device_owners(shared_registry_entry)
         else:
             assert shared_registry_entry is None
         assert device_registry.async_get(other_domain_device.id) is not None
@@ -2323,6 +2323,15 @@ def _entry() -> SimpleNamespace:
         state=config_entries.ConfigEntryState.SETUP_IN_PROGRESS,
         unique_id="1000001",
     )
+
+
+def _device_owners(device: Any) -> set[str]:
+    # Home Assistant 2026.10 exposes the single owner as config_entry_id and deprecates
+    # config_entries; older multi-owner releases only have config_entries.
+    owner = getattr(device, "config_entry_id", None)
+    if owner is not None:
+        return {owner}
+    return set(device.config_entries)
 
 
 def _config_entry() -> config_entries.ConfigEntry:
