@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.6.5 (2026-10-13)
+
+### Bug Fixes
+
+- **coordinator**: Support Home Assistant 2026.10
+  ([#23](https://github.com/RaMin0/homeassistant-ok/pull/23),
+  [`7eb6ae9`](https://github.com/RaMin0/homeassistant-ok/commit/7eb6ae948fcd71a3f969e35ac7db0af7604edc2a))
+
+
 ## v0.6.4 (2026-09-04)
 
 ### Bug Fixes
