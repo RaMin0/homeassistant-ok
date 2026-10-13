@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.6.6 (2026-10-13)
+
+### Bug Fixes
+
+- **deps**: Use ranges so Home Assistant keeps its google packages
+  ([#24](https://github.com/RaMin0/homeassistant-ok/pull/24),
+  [`ee2ecf5`](https://github.com/RaMin0/homeassistant-ok/commit/ee2ecf53963495ae9a27b8678f06b0e62369139a))
+
+
 ## v0.6.5 (2026-10-13)
 
 ### Bug Fixes
