@@ -946,7 +946,7 @@ class OkDataUpdateCoordinator(DataUpdateCoordinator[OkData]):  # type: ignore[mi
                 # 2027.8.0. When this entry is the device's only owner, remove it outright with
                 # async_remove_device. Fall back to disassociation only when another config entry
                 # still owns the device, which only happens on older multi-owner Home Assistant.
-                if device.config_entries == {self.entry.entry_id}:
+                if _device_owned_only_by(device, self.entry.entry_id):
                     device_registry.async_remove_device(device.id)
                 else:
                     device_registry.async_update_device(
@@ -1605,6 +1605,16 @@ async def _async_get_device_registry(hass: HomeAssistant) -> Any:
         await async_wait_loaded()
 
     return device_registry
+
+
+def _device_owned_only_by(device: Any, entry_id: str) -> bool:
+    """Return whether a config entry is a device's only owner across registry models."""
+    # Home Assistant 2026.10 exposes the single owner as config_entry_id and deprecates
+    # config_entries (breaks in 2027.10.0). Older multi-owner releases only have config_entries.
+    owner = getattr(device, "config_entry_id", None)
+    if owner is not None:
+        return bool(owner == entry_id)
+    return bool(device.config_entries == {entry_id})
 
 
 async def _async_load_device_registry_instance(device_registry: Any) -> None:
